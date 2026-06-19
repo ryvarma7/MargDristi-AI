@@ -1,2 +1,0 @@
-# MargDristi AI Requirements
-# Add dependencies here as needed
