@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-base: #06080F;
+  --bg-surface: #0C1221;
+  --bg-elevated: #111C30;
+  --border: #1A2840;
+  --border-active: #2A4080;
+  --blue: #1E6FFF;
+  --blue-dim: #0D3580;
+  --cyan: #00C8FF;
+  --purple: #9B72FF;
+  --tier1: #FF3B3B;
+  --tier2: #FF9500;
+  --tier3: #00C853;
+  --text: #E8EDF5;
+  --text-dim: #6B7A99;
+  --text-faint: #3A4A66;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.tier1-border {
+  border-left: 3px solid var(--tier1);
+}
+
+.tier2-border {
+  border-left: 3px solid var(--tier2);
+}
+
+.tier3-border {
+  border-left: 3px solid var(--tier3);
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
