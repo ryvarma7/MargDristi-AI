@@ -3,6 +3,51 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, Popup, useMap }
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const BENGALURU_CENTER: [number, number] = [12.9716, 77.5946];
+const BENGALURU_ZOOM = 11;
+
+function ResetToBengaluruControl() {
+  const map = useMap();
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 80,
+        right: 12,
+        zIndex: 1000,
+      }}
+    >
+      <button
+        onClick={() => map.setView(BENGALURU_CENTER, BENGALURU_ZOOM)}
+        style={{
+          background: 'rgba(11, 22, 41, 0.94)',
+          border: '1px solid rgba(30, 111, 255, 0.35)',
+          color: 'var(--cyan)',
+          fontFamily: 'IBM Plex Mono',
+          fontSize: 9,
+          fontWeight: 700,
+          padding: '6px 10px',
+          cursor: 'pointer',
+          letterSpacing: '0.06em',
+          borderRadius: 4,
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          whiteSpace: 'nowrap',
+        }}
+        title="Reset to Bengaluru"
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        BENGALURU
+      </button>
+    </div>
+  );
+}
+
 interface ParkingHotspot {
   cluster_id: number;
   zone_name: string;
@@ -72,7 +117,6 @@ function ParkingLegend() {
 }
 
 export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId }: Props) {
-  const defaultCenter: [number, number] = [28.6139, 77.2090];
 
   const getRadius = (violations: number) => {
     return Math.max(8, Math.min(25, violations / 2));
@@ -96,8 +140,8 @@ export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <MapContainer
-        center={defaultCenter}
-        zoom={12}
+        center={BENGALURU_CENTER}
+        zoom={BENGALURU_ZOOM}
         style={{ width: '100%', height: '100%' }}
         zoomControl={false}
       >
@@ -162,6 +206,7 @@ export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId
             </React.Fragment>
           );
         })}
+        <ResetToBengaluruControl />
       </MapContainer>
 
       <ParkingLegend />

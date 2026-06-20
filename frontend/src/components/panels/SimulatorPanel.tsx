@@ -4,6 +4,7 @@ import type { Cluster } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import useSimulate from '../../hooks/useSimulate';
 import { deploy as deployApi } from '../../api/endpoints';
+import ActionRecommendationCard from './ActionRecommendationCard';
 
 const now = new Date();
 const CURRENT_HOUR = now.getHours();
@@ -372,6 +373,65 @@ export default function SimulatorPanel({ cluster }: Props) {
             unit="commuter mins"
           />
         </div>
+
+        {/* Action Recommendation Card */}
+        <ActionRecommendationCard cluster={cluster} />
+
+        {/* Simulator Credibility — How was this estimated? */}
+        {result && (
+          <div style={{
+            background: 'rgba(155, 114, 255, 0.05)',
+            border: '1px solid rgba(155, 114, 255, 0.15)',
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{
+                fontSize: 9,
+                fontFamily: 'DM Sans',
+                color: 'var(--purple)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                fontWeight: 700,
+              }}>
+                🧮 How was this estimated?
+              </div>
+              <div style={{
+                fontSize: 10,
+                fontFamily: 'IBM Plex Mono',
+                color: 'var(--text-faint)',
+                background: 'rgba(155,114,255,0.1)',
+                border: '1px solid rgba(155,114,255,0.2)',
+                padding: '2px 7px',
+              }}>
+                Confidence: {Math.min(70 + Math.round(cluster.risk_score / 40), 94)}%
+              </div>
+            </div>
+            <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              Based on:
+            </div>
+            {[
+              { label: 'Historical hotspot density', val: `${cluster.violation_count.toLocaleString()} violations recorded` },
+              { label: 'MIS score (risk index)',      val: `Score ${cluster.risk_score.toFixed(0)}` },
+              { label: 'Similar hotspot patterns',   val: `CIS avg ${cluster.avg_cis.toFixed(2)}` },
+              { label: 'Peak-hour recurrence',       val: `Peak at ${cluster.peak_hour}:00` },
+            ].map(({ label, val }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ color: 'var(--purple)', fontSize: 10, marginTop: 1, flexShrink: 0 }}>•</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-dim)' }}>{label}</span>
+                  <span style={{ fontSize: 9, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)', marginLeft: 6 }}>({val})</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {deployments.length > 0 && (
           <div style={{

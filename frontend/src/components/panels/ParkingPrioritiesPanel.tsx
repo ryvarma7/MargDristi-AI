@@ -36,9 +36,9 @@ export default function ParkingPrioritiesPanel({ priorities, onSelect, selectedI
         num_officers: priority.recommended_officers,
         deploy_date: new Date().toISOString().split('T')[0],
       });
-      setNotification(`✓ Deployed ${priority.recommended_officers} officers to ${priority.zone_name}`);
+      setNotification(`DEPLOYED ${priority.recommended_officers} officers to ${priority.zone_name}`);
     } catch (err) {
-      setNotification(`✗ Deployment failed for ${priority.zone_name}`);
+      setNotification(`FAILED — Deployment error for ${priority.zone_name}`);
       console.error('Deployment error:', err);
     } finally {
       setDeployingId(null);
@@ -173,7 +173,7 @@ export default function ParkingPrioritiesPanel({ priorities, onSelect, selectedI
                 <div style={{
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 4,
+                  gap: 3,
                   minWidth: 0,
                 }}>
                   <div style={{
@@ -244,29 +244,36 @@ export default function ParkingPrioritiesPanel({ priorities, onSelect, selectedI
                 </div>
 
                 {/* Deploy button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeploy(p);
-                  }}
-                  disabled={isDeploying}
-                  style={{
-                    background: isDeploying ? 'rgba(0, 200, 255, 0.14)' : 'rgba(0, 200, 255, 0.12)',
-                    color: 'var(--cyan)',
-                    border: '1px solid rgba(0, 200, 255, 0.22)',
-                    borderRadius: 6,
-                    padding: '6px 8px',
-                    fontSize: 9,
-                    fontFamily: 'IBM Plex Mono',
-                    fontWeight: 700,
-                    cursor: isDeploying ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'opacity 0.2s',
-                  }}
-                >
-                  {isDeploying ? 'DEPLOYING' : `SEND ${p.recommended_officers}`}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeploy(p);
+                    }}
+                    disabled={isDeploying}
+                    style={{
+                      background: isDeploying ? 'rgba(0, 200, 255, 0.14)' : 'rgba(0, 200, 255, 0.12)',
+                      color: 'var(--cyan)',
+                      border: '1px solid rgba(0, 200, 255, 0.22)',
+                      borderRadius: 6,
+                      padding: '6px 8px',
+                      fontSize: 9,
+                      fontFamily: 'IBM Plex Mono',
+                      fontWeight: 700,
+                      cursor: isDeploying ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'opacity 0.2s',
+                    }}
+                  >
+                    {isDeploying ? 'DEPLOYING…' : `Deploy ${p.recommended_officers} Officers`}
+                  </button>
+                  <div style={{ fontSize: 8, fontFamily: 'DM Sans', color: 'var(--text-faint)', lineHeight: 1.4 }}>
+                    <div>Impact: <span style={{ color: p.congestion_impact >= 15 ? 'var(--tier1)' : p.congestion_impact >= 8 ? 'var(--tier2)' : 'var(--tier3)' }}>{p.congestion_impact.toFixed(1)}% congestion</span></div>
+                    <div>Window: <span style={{ color: 'var(--cyan)' }}>{p.peak_hours}</span></div>
+                    <div>Coverage: <span style={{ color: p.enforcement_gap_hours > 4 ? 'var(--tier1)' : 'var(--tier2)' }}>{p.enforcement_gap_hours > 4 ? 'Uncovered' : 'Partial'}</span></div>
+                  </div>
+                </div>
               </div>
             );
           })
@@ -277,9 +284,9 @@ export default function ParkingPrioritiesPanel({ priorities, onSelect, selectedI
       {notification && (
         <div style={{
           padding: '8px 14px',
-          background: notification.includes('✓') ? 'rgba(0, 200, 100, 0.12)' : 'rgba(255, 59, 59, 0.12)',
-          border: `1px solid ${notification.includes('✓') ? 'rgba(0, 200, 100, 0.22)' : 'rgba(255, 59, 59, 0.22)'}`,
-          color: notification.includes('✓') ? 'var(--cyan)' : 'var(--tier1)',
+          background: notification.startsWith('DEPLOYED') ? 'rgba(0, 200, 100, 0.12)' : 'rgba(255, 59, 59, 0.12)',
+          border: `1px solid ${notification.startsWith('DEPLOYED') ? 'rgba(0, 200, 100, 0.22)' : 'rgba(255, 59, 59, 0.22)'}`,
+          color: notification.startsWith('DEPLOYED') ? 'var(--cyan)' : 'var(--tier1)',
           fontSize: 10,
           fontFamily: 'DM Sans',
           flexShrink: 0,

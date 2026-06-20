@@ -1,11 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg-base:       #06080F;
-  --bg-surface:    #0C1221;
-  --bg-elevated:   #111C30;
-  --border:        #1A2840;
-  --border-active: #2A4080;
+  --bg-base:       #050B16;
+  --bg-surface:    #0B1629;
+  --bg-elevated:   #12213A;
+  --border:        #1C2D45;
+  --border-active: #2E4880;
   --blue:          #1E6FFF;
   --blue-dim:      #0D3580;
   --cyan:          #00C8FF;
@@ -184,3 +184,109 @@ input[type='range'].md-slider::-webkit-slider-runnable-track {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--blue);
 }
+
+/* ─── AI Discovered Badge Pulse ───────────────────────────────────────── */
+@keyframes ai-badge-glow {
+  0%   { box-shadow: 0 0 6px rgba(155, 114, 255, 0.5), 0 0 12px rgba(0, 200, 255, 0.2); }
+  50%  { box-shadow: 0 0 14px rgba(155, 114, 255, 0.9), 0 0 28px rgba(0, 200, 255, 0.4); }
+  100% { box-shadow: 0 0 6px rgba(155, 114, 255, 0.5), 0 0 12px rgba(0, 200, 255, 0.2); }
+}
+
+.ai-badge-glow {
+  animation: ai-badge-glow 2.4s ease-in-out infinite;
+}
+
+/* ─── Forecast Bar Shimmer ────────────────────────────────────────────── */
+@keyframes forecast-shimmer {
+  0%   { opacity: 0.55; }
+  50%  { opacity: 0.9; }
+  100% { opacity: 0.55; }
+}
+
+.forecast-bar {
+  animation: forecast-shimmer 2s ease-in-out infinite;
+}
+
+/* ─── Ops Alert Blink ─────────────────────────────────────────────────── */
+@keyframes ops-alert-blink {
+  0%, 100% { border-color: rgba(255, 59, 59, 0.5); }
+  50%       { border-color: rgba(255, 59, 59, 0.15); }
+}
+
+.ops-alert-critical {
+  animation: ops-alert-blink 1.8s ease-in-out infinite;
+}
+
+/* ─── Collapsible Panel Transition ───────────────────────────────────── */
+.xai-panel-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+.xai-panel-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+}
+.xai-panel-exit {
+  transform: translateX(0);
+  opacity: 1;
+}
+.xai-panel-exit-active {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.22s cubic-bezier(0.55, 0, 1, 0.45), opacity 0.18s ease;
+}
+
+/* ─── Command Queue Row Hover ─────────────────────────────────────────── */
+.cq-row {
+  transition: background 0.12s ease;
+}
+.cq-row:hover {
+  background: var(--bg-elevated) !important;
+}
+
+/* ─── Confidence Ring Animation ───────────────────────────────────────── */
+@keyframes conf-ring-draw {
+  from { stroke-dashoffset: 200; }
+  to   { stroke-dashoffset: var(--conf-offset); }
+}
+
+.conf-ring-path {
+  animation: conf-ring-draw 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ─── Map Layer Toggle Button ─────────────────────────────────────────── */
+.map-layer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  backdrop-filter: blur(6px);
+}
+
+/* ─── Contribution Bar Fill Animation ─────────────────────────────────── */
+@keyframes bar-fill {
+  from { width: 0; }
+  to   { width: var(--bar-w); }
+}
+
+.contrib-bar-fill {
+  animation: bar-fill 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ─── Action Recommendation Card Entrance ─────────────────────────────── */
+@keyframes card-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.action-card-enter {
+  animation: card-slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+

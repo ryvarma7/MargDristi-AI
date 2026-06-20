@@ -76,3 +76,56 @@ export interface HealthStatus {
   total_clusters: number;
   total_violations: number;
 }
+
+// ─── New Types for Command Center Upgrade ────────────────────────────────────
+
+export interface ActionRecommendation {
+  cluster_id: number;
+  risk_tier: Cluster['tier'];
+  officers_required: number;
+  window_start: string;
+  window_end: string;
+  violations_prevented: number;
+  congestion_reduction_pct: number;
+  confidence_pct: number;
+}
+
+export interface XAIFactor {
+  label: string;
+  contribution_pct: number;
+  tooltip: string;
+  color: string;
+}
+
+export interface HourlyForecast {
+  hour: number;
+  historical: number;
+  predicted: number | null;
+  is_forecast: boolean;
+  confidence_pct: number;
+}
+
+export interface AIDiscoveredHotspot {
+  cluster_id: number;
+  zone_name: string;
+  centroid_lat: number;
+  centroid_lng: number;
+  cluster_size: number;
+  density_score: number;
+  mis_score: number;
+  risk_rank: number;
+  persistence_days: number;
+  is_official_junction: boolean;
+  tier: Cluster['tier'];
+  violation_count: number;
+}
+
+export interface OfficerOpsAlert {
+  type: 'no_officer' | 'peak_approaching' | 'deployment_overdue' | 'high_risk_uncovered';
+  cluster_id: number;
+  zone_name: string;
+  tier: Cluster['tier'];
+  peak_hour: number;
+  message: string;
+  urgency: 'critical' | 'warning' | 'info';
+}

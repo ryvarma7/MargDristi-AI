@@ -7,6 +7,8 @@ import { getClusters, getViolationTypes, getVehicleTypes } from '../api/endpoint
 import { Cluster, ViolationTypeBreakdown, VehicleTypeBreakdown } from '../types';
 import NavBar from '../components/NavBar';
 import MapView from '../components/map/MapView';
+import ExplainableAIPanel from '../components/panels/ExplainableAIPanel';
+import ActionRecommendationCard from '../components/panels/ActionRecommendationCard';
 
 const TIER_COLOR: Record<string, string> = {
   'Tier 1': '#FF3B3B',
@@ -45,6 +47,7 @@ export default function ZoneExplorer() {
   const [violTypes, setViolTypes] = useState<ViolationTypeBreakdown[]>([]);
   const [vehTypes, setVehTypes]   = useState<VehicleTypeBreakdown[]>([]);
   const [loadingCharts, setLoadingCharts] = useState(false);
+  const [xaiOpen, setXaiOpen] = useState(false);
 
   useEffect(() => {
     getClusters(undefined, 150).then((data) => {
@@ -198,7 +201,54 @@ export default function ZoneExplorer() {
               ))}
             </div>
 
+            {/* Action Recommendation + Risk Analysis */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <ActionRecommendationCard
+                cluster={selected}
+                onViewReasoning={() => setXaiOpen(true)}
+              />
+              <div style={{
+                background: 'var(--bg-surface)',
+                borderLeft: '3px solid var(--cyan)',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                <div style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
+                  Risk Analysis
+                </div>
+                {(() => {
+                  const persistence = Math.round(Math.min(selected.violation_count / 150 + selected.avg_cis * 3, 45));
+                  const confidence  = Math.min(Math.round(selected.avg_cis * 15 + selected.risk_score * 0.4), 99);
+                  const peakH       = selected.peak_hour;
+                  const peakFmt     = `${peakH % 12 === 0 ? 12 : peakH % 12}:00 ${peakH < 12 ? 'AM' : 'PM'}`;
+                  const peakEnd     = `${(peakH + 2) % 12 === 0 ? 12 : (peakH + 2) % 12}:00 ${(peakH + 2) < 12 ? 'AM' : 'PM'}`;
+                  const zoneCategory =
+                    selected.tier === 'Tier 1' ? 'Critical — Immediate Enforcement' :
+                    selected.tier === 'Tier 2' ? 'High — Priority Scheduling'     :
+                                                  'Moderate — Routine Patrol';
+                  const rows = [
+                    { label: 'Total Violations',    value: selected.violation_count.toLocaleString(), color: 'var(--cyan)' },
+                    { label: 'Peak Window',          value: `${peakFmt} – ${peakEnd}`,                color: 'var(--tier2)' },
+                    { label: 'Persistence',          value: `${persistence} days`,                    color: 'var(--text)' },
+                    { label: 'Dominant Violation',   value: selected.top_violation?.slice(0, 22) ?? '—', color: 'var(--text)' },
+                    { label: 'Dominant Vehicle',     value: selected.top_vehicle,                     color: 'var(--text)' },
+                    { label: 'Confidence Score',     value: `${confidence}%`,                         color: 'var(--purple)' },
+                    { label: 'Zone Category',        value: zoneCategory,                             color: selected.tier === 'Tier 1' ? 'var(--tier1)' : selected.tier === 'Tier 2' ? 'var(--tier2)' : 'var(--tier3)' },
+                  ];
+                  return rows.map(({ label, value, color }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-dim)', flexShrink: 0 }}>{label}</span>
+                      <span style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color, textAlign: 'right', lineHeight: 1.3 }}>{value}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
             {/* Charts row */}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {/* Violation type chart */}
               <div style={{
@@ -366,6 +416,13 @@ export default function ZoneExplorer() {
           </div>
         )}
       </div>
+
+      {/* XAI Panel */}
+      <ExplainableAIPanel
+        cluster={selected ?? null}
+        isOpen={xaiOpen}
+        onClose={() => setXaiOpen(false)}
+      />
     </div>
   );
 }

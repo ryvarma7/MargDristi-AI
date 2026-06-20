@@ -57,6 +57,7 @@ export default function NavBar() {
           { to: '/zones', label: 'Zone Explorer' },
           { to: '/temporal', label: 'Temporal Analysis' },
           { to: '/parking', label: 'Parking Intelligence' },
+          { to: '/hotspots', label: 'Hidden Hotspots' },
         ].map(({ to, label }) => (
           <NavLink
             key={to}
@@ -78,6 +79,7 @@ export default function NavBar() {
           </NavLink>
         ))}
       </div>
+
 
       {/* Status indicator */}
       <div style={{
