@@ -28,6 +28,17 @@ export interface SimulateResponse {
   commuter_minutes_saved: number;
 }
 
+export interface DeployRequest {
+  cluster_id: number;
+  num_officers: number;
+}
+
+export interface DeployResponse {
+  success: boolean;
+  message: string;
+  assigned?: Record<string, any> | null;
+}
+
 export interface ForecastPoint {
   date: string;
   predicted: number;

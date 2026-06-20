@@ -1,0 +1,11 @@
+cluster_id,zone_name,centroid_lat,centroid_lng,parking_violation_count,avg_congestion_impact_pct,vehicle_types_affected,location_context,peak_hours,priority_score,enforcement_gap,deployments_count
+186,"Cluster 186 (12.9336, 77.6910)",12.933571,77.691018,6068,4.2,3,Commercial + Metro,09:00-11:00,76.8,8.3,0
+117,"Cluster 117 (13.0083, 77.6953)",13.008284,77.695258,3488,7.0,6,Commercial + Metro,11:00-13:00,62.5,9.6,0
+263,"Cluster 263 (13.0713, 77.5881)",13.071329,77.588121,2826,4.2,3,Commercial + Metro,11:00-13:00,44.7,6.8,0
+87,"Cluster 87 (12.9963, 77.6686)",12.996317,77.668643,2035,5.25,2,Commercial + Metro,12:00-14:00,41.1,8.5,0
+558,BTP040 - Elite Junction,12.977264,77.576478,2331,4.29,3,Junction,09:00-11:00,40.2,6.6,0
+248,"Cluster 248 (13.0353, 77.5890)",13.035335,77.58904,2332,4.2,3,Commercial + Metro,10:00-12:00,39.9,7.4,0
+410,"BTP070 - Cholurpalya Junction, Magadi Road",12.973584,77.551131,2436,3.67,4,Junction,08:00-10:00,38.8,5.5,0
+469,BTP057 - Anand Rao Junction,12.979596,77.574921,2535,3.0,4,Junction,10:00-12:00,37.1,7.4,0
+436,BTP211 - Central Street Junction,12.984077,77.603522,2502,3.0,4,Junction,12:00-14:00,36.7,8.1,0
+528,BTP051 - Safina Plaza Junction,12.981051,77.610192,2180,3.72,6,Junction,09:00-11:00,36.5,5.7,0

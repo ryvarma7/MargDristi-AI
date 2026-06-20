@@ -20,6 +20,11 @@ class ModelLoader:
         self.hourly = None
         self.heatmap = None
         self.forecasts = None
+        # Parking data
+        self.parking_violations = None
+        self.parking_hotspots = None
+        self.parking_heatmap = None
+        self.parking_deployments = None
         self.status = {}
 
     def load_all(self) -> None:
@@ -27,6 +32,7 @@ class ModelLoader:
         self._load_simulator()
         self._load_prophet_models()
         self._load_dataframes()
+        self._load_parking_data()
 
     def _load_dbscan(self) -> None:
         path = self.models_dir / "hdbscan_model.pkl"
@@ -70,6 +76,16 @@ class ModelLoader:
         self.status["hourly"] = self.hourly is not None
         self.status["heatmap"] = self.heatmap is not None
         self.status["forecasts"] = self.forecasts is not None
+
+    def _load_parking_data(self) -> None:
+        """Load parking-related data for the new parking intelligence module."""
+        self.parking_violations = self._load_csv("parking_violations.csv")
+        self.parking_hotspots = self._load_csv("parking_hotspots.csv")
+        self.parking_heatmap = self._load_csv("parking_temporal_heatmap.csv")
+        
+        self.status["parking_violations"] = self.parking_violations is not None
+        self.status["parking_hotspots"] = self.parking_hotspots is not None
+        self.status["parking_heatmap"] = self.parking_heatmap is not None
 
     def _load_csv(self, name: str):
         path = self.data_dir / name
@@ -221,6 +237,137 @@ class ModelLoader:
                 if str(col) != "Unnamed: 0"
             }
         return matrix
+
+    # ==================== Parking Methods ====================
+
+    def get_parking_hotspots(self) -> List[Dict]:
+        """Return all parking hotspots ranked by priority."""
+        if self.parking_hotspots is None:
+            return []
+        return self.parking_hotspots.sort_values("priority_score", ascending=False).to_dict(orient="records")
+
+    def get_parking_hotspot(self, cluster_id: int) -> Optional[Dict]:
+        """Get parking hotspot details for a specific cluster."""
+        if self.parking_hotspots is None:
+            return None
+        row = self.parking_hotspots[self.parking_hotspots["cluster_id"] == cluster_id]
+        if row.empty:
+            return None
+        return row.iloc[0].to_dict()
+
+    def get_parking_violations_by_cluster(self, cluster_id: int) -> List[Dict]:
+        """Get all parking violations for a cluster."""
+        if self.parking_violations is None:
+            return []
+        df = self.parking_violations[self.parking_violations["cluster_id"] == cluster_id]
+        return df.to_dict(orient="records")
+
+    def get_parking_priorities(self) -> List[Dict]:
+        """Calculate and return parking enforcement priorities ranked by impact."""
+        if self.parking_hotspots is None:
+            return []
+        
+        df = self.parking_hotspots.copy()
+        df["recommended_officers"] = df.apply(
+            lambda row: max(2, min(8, int(row["parking_violation_count"] / 2))), axis=1
+        )
+        df["priority_rank"] = range(1, len(df) + 1)
+        
+        priorities = []
+        for _, row in df.iterrows():
+            priorities.append({
+                "cluster_id": int(row["cluster_id"]),
+                "zone_name": str(row["zone_name"]),
+                "priority_rank": int(row["priority_rank"]),
+                "priority_score": float(row["priority_score"]),
+                "violation_count": int(row["parking_violation_count"]),
+                "congestion_impact": float(row["avg_congestion_impact_pct"]),
+                "peak_hours": str(row["peak_hours"]),
+                "location_context": str(row["location_context"]),
+                "recommended_officers": int(row["recommended_officers"]),
+                "enforcement_gap_hours": float(row["enforcement_gap"]),
+            })
+        
+        return sorted(priorities, key=lambda x: x["priority_score"], reverse=True)
+
+    def get_parking_heatmap_matrix(self) -> Dict:
+        """Get temporal heatmap for parking violations."""
+        matrix = {}
+        if self.parking_heatmap is None:
+            return matrix
+        
+        day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        
+        for _, row in self.parking_heatmap.iterrows():
+            day_name = str(row.iloc[0]) if len(row) > 0 else None
+            if day_name and day_name in day_order:
+                day_short = day_name[:3]
+                matrix[day_short] = {}
+                for hour in range(24):
+                    col_name = f"hour_{hour}"
+                    if col_name in self.parking_heatmap.columns:
+                        matrix[day_short][hour] = int(row[col_name])
+                    else:
+                        matrix[day_short][hour] = 0
+        
+        return matrix
+
+    def add_parking_deployment(self, cluster_id: int, officers: int, deploy_date: str) -> str:
+        """Record a parking enforcement deployment."""
+        import uuid
+        deployment_id = str(uuid.uuid4())[:8]
+        
+        if self.parking_deployments is None:
+            self.parking_deployments = pd.DataFrame(columns=[
+                "deployment_id", "cluster_id", "officers", "deploy_date", "violations_before", "violations_after"
+            ])
+        
+        new_deployment = {
+            "deployment_id": deployment_id,
+            "cluster_id": cluster_id,
+            "officers": officers,
+            "deploy_date": deploy_date,
+            "violations_before": 0,
+            "violations_after": 0,
+        }
+        
+        self.parking_deployments = pd.concat(
+            [self.parking_deployments, pd.DataFrame([new_deployment])],
+            ignore_index=True
+        )
+        
+        return deployment_id
+
+    def get_parking_effectiveness(self, cluster_id: Optional[int] = None) -> List[Dict]:
+        """Get enforcement effectiveness metrics for parking."""
+        if self.parking_deployments is None:
+            return []
+        
+        df = self.parking_deployments
+        if cluster_id is not None:
+            df = df[df["cluster_id"] == cluster_id]
+        
+        results = []
+        for _, row in df.iterrows():
+            violations_before = int(row.get("violations_before", 0))
+            violations_after = int(row.get("violations_after", 0))
+            prevention = violations_before - violations_after
+            prevention_rate = (prevention / violations_before * 100) if violations_before > 0 else 0
+            
+            results.append({
+                "cluster_id": int(row["cluster_id"]),
+                "deployment_id": str(row["deployment_id"]),
+                "deploy_date": str(row["deploy_date"]),
+                "officers_deployed": int(row["officers"]),
+                "violations_before": violations_before,
+                "violations_after": violations_after,
+                "prevention_rate_pct": round(prevention_rate, 1),
+                "congestion_reduction_pct": round(prevention_rate * 0.8, 1),
+                "commuter_minutes_saved": int(prevention * 2.5),
+                "enforcement_cost_inr": int(row["officers"]) * 500,
+            })
+        
+        return results
 
 
 loader = ModelLoader(

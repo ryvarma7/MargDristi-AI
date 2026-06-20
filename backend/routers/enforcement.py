@@ -4,6 +4,11 @@ from fastapi import APIRouter, HTTPException
 
 from schemas.models import ClusterOut, SimulateRequest, SimulateResponse
 from ml.loader import loader
+from schemas.models import DeployRequest, DeployResponse
+from datetime import datetime
+
+# simple in-memory store for deployments
+_deployments: dict[int, dict] = {}
 
 router = APIRouter(prefix="/api/enforcement", tags=["enforcement"])
 
@@ -43,3 +48,18 @@ def recommendations(station: str | None = None):
     top = [c for c in clusters if c.get("tier") in ("Tier 1", "Tier 2")]
     top = sorted(top, key=lambda item: item.get("risk_score", 0), reverse=True)
     return [ClusterOut(**c) for c in top[:20]]
+
+
+@router.post('/deploy', response_model=DeployResponse)
+def deploy(request: DeployRequest):
+    cluster = loader.get_cluster(request.cluster_id)
+    if cluster is None:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    # record a simple assignment
+    _deployments[request.cluster_id] = {
+        'num_officers': request.num_officers,
+        'deployed_at': datetime.utcnow().isoformat() + 'Z',
+    }
+
+    return DeployResponse(success=True, message='Officers assigned', assigned=_deployments[request.cluster_id])

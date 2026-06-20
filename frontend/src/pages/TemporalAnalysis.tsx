@@ -1,370 +1,365 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import 'leaflet.heat';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, ReferenceLine,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts';
-import { getClusters, getHourlyPattern, getHeatmap } from '../api/endpoints';
-import { Cluster, HourlyPoint } from '../types';
+import { getClusters, getGeoHeatmapPoints, getHourlyPattern } from '../api/endpoints';
+import type { Cluster, HourlyPoint } from '../types';
 import NavBar from '../components/NavBar';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// ── leaflet.heat type shim ────────────────────────────────────────────────────
+declare module 'leaflet' {
+  function heatLayer(
+    latlngs: [number, number, number?][],
+    options?: {
+      minOpacity?: number;
+      maxZoom?: number;
+      max?: number;
+      radius?: number;
+      blur?: number;
+      gradient?: Record<string, string>;
+    }
+  ): L.Layer & { setLatLngs(latlngs: [number, number, number?][]): void };
+}
+
+const BENGALURU: [number, number] = [12.9716, 77.5946];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-function HourLabel({ h }: { h: number }) {
-  if (h === 0)  return <>12AM</>;
-  if (h === 6)  return <>6AM</>;
-  if (h === 12) return <>12PM</>;
-  if (h === 18) return <>6PM</>;
-  if (h === 23) return <>11PM</>;
+// Subtle gradient — keep map readable, colors only bloom at true hotspots
+const GRADIENT = {
+  0.0:  'rgba(0,0,0,0)',
+  0.15: 'rgba(0,180,80,0.15)',   // near-invisible green
+  0.35: 'rgba(0,180,80,0.45)',   // soft green
+  0.55: 'rgba(255,149,0,0.55)',  // amber
+  0.75: 'rgba(220,50,30,0.65)',  // muted red
+  1.0:  'rgba(255,30,30,0.82)',  // red only at true peaks
+};
+
+// ── HeatLayer inner component ─────────────────────────────────────────────────
+function HeatLayer({ points }: { points: [number, number, number][] }) {
+  const map = useMap();
+  const layerRef = useRef<(L.Layer & { setLatLngs: Function }) | null>(null);
+
+  useEffect(() => {
+    if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null; }
+    if (points.length === 0) return;
+
+    const layer = L.heatLayer(points, {
+      radius: 22,
+      blur: 28,
+      maxZoom: 17,
+      max: 1.0,
+      minOpacity: 0.0,
+      gradient: GRADIENT,
+    });
+    layer.addTo(map);
+    layerRef.current = layer;
+    return () => { if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null; } };
+  }, [map, points]);
+
   return null;
 }
 
-const CustomBarTooltip = ({
-  active, payload, label,
-}: {
-  active?: boolean;
-  payload?: { value: number }[];
-  label?: number;
-}) => {
-  if (!active || !payload?.length) return null;
-  const isBlindspot = (label ?? 0) >= 12 && (label ?? 0) <= 17;
+// ── Zone info card (bottom-left of map) ──────────────────────────────────────
+function InfoOverlay({ cluster }: { cluster: Cluster | null }) {
+  if (!cluster) return null;
+  const TIER_COLOR: Record<string, string> = { 'Tier 1': '#FF3B3B', 'Tier 2': '#FF9500', 'Tier 3': '#00C853' };
+  const tc = TIER_COLOR[cluster.tier] ?? 'var(--cyan)';
   return (
     <div style={{
-      background: 'var(--bg-elevated)',
-      border: `1px solid ${isBlindspot ? 'var(--tier1)' : 'var(--border-active)'}`,
-      padding: '8px 12px',
-      fontFamily: 'DM Sans',
-      fontSize: 12,
-      color: 'var(--text)',
+      position: 'absolute', bottom: 16, left: 16, zIndex: 2000,
+      background: 'rgba(8,12,24,0.88)', border: '1px solid rgba(255,255,255,0.08)',
+      borderLeft: `3px solid ${tc}`, borderRadius: 10, padding: '10px 14px',
+      fontFamily: 'DM Sans', minWidth: 210, pointerEvents: 'none',
+      backdropFilter: 'blur(6px)',
+    }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'white', marginBottom: 5 }}>{cluster.zone_name}</div>
+      <div style={{ fontSize: 10, lineHeight: 1.8, color: 'var(--text-dim)' }}>
+        <div><span style={{ color: 'var(--cyan)' }}>Violations</span>: {cluster.violation_count.toLocaleString()}</div>
+        <div><span style={{ color: 'var(--cyan)' }}>Avg CIS</span>: {cluster.avg_cis.toFixed(2)}</div>
+        <div><span style={{ color: 'var(--cyan)' }}>Risk</span>: {cluster.risk_score.toFixed(0)}</div>
+        <div><span style={{ color: tc }}>●</span> {cluster.tier}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Density legend (bottom-right of map) ─────────────────────────────────────
+function Legend({ count }: { count: number }) {
+  return (
+    <div style={{
+      position: 'absolute', bottom: 16, right: 16, zIndex: 2000,
+      background: 'rgba(8,12,24,0.88)', border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 10, padding: '10px 14px', fontFamily: 'DM Sans', minWidth: 180,
+      pointerEvents: 'none', backdropFilter: 'blur(6px)',
+    }}>
+      <div style={{ fontSize: 9, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>
+        Violation Density
+      </div>
+      <div style={{ height: 8, borderRadius: 999, marginBottom: 5,
+        background: 'linear-gradient(90deg, rgba(0,180,80,0.5) 0%, rgba(255,149,0,0.65) 50%, rgba(220,50,30,0.82) 100%)',
+      }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'var(--text-faint)' }}>
+        <span>Low</span><span>Medium</span><span>High</span>
+      </div>
+      {count > 0 && (
+        <div style={{ marginTop: 6, fontSize: 9, color: 'var(--text-faint)', fontFamily: 'IBM Plex Mono' }}>
+          {count.toLocaleString()} pts
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bar chart tooltip ─────────────────────────────────────────────────────────
+function BarTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: number }) {
+  if (!active || !payload?.length) return null;
+  const blind = (label ?? 0) >= 12 && (label ?? 0) <= 17;
+  const h = label ?? 0;
+  const period = h < 12 ? 'AM' : 'PM';
+  const disp = h % 12 === 0 ? 12 : h % 12;
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: `1px solid ${blind ? 'rgba(255,59,59,0.4)' : 'var(--border-active)'}`,
+      padding: '8px 12px', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--text)', borderRadius: 6,
     }}>
       <div style={{ color: 'var(--text-dim)', fontSize: 10, marginBottom: 3 }}>
-        {label}:00 {(label ?? 0) < 12 ? 'AM' : 'PM'}
-        {isBlindspot && (
-          <span style={{ color: 'var(--tier1)', marginLeft: 8 }}>⚠ BLINDSPOT HOUR</span>
-        )}
+        {disp}:00 {period}{blind && <span style={{ color: '#FF3B3B', marginLeft: 8 }}>⚠ BLINDSPOT</span>}
       </div>
-      <div style={{ fontFamily: 'IBM Plex Mono', color: isBlindspot ? 'var(--tier1)' : 'var(--cyan)' }}>
+      <div style={{ fontFamily: 'IBM Plex Mono', color: blind ? '#FF3B3B' : 'var(--cyan)' }}>
         {payload[0].value.toLocaleString()} violations
       </div>
     </div>
   );
-};
+}
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function TemporalAnalysis() {
-  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [clusters, setClusters]   = useState<Cluster[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [hourly, setHourly] = useState<HourlyPoint[]>([]);
-  const [heatmap, setHeatmap] = useState<Record<string, Record<number, number>>>({});
-  const [loading, setLoading] = useState(false);
+  const [points, setPoints]       = useState<[number, number, number][]>([]);
+  const [hourly, setHourly]       = useState<HourlyPoint[]>([]);
+  const [heatLoading, setHeatLoading] = useState(false);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
+  const selectedCluster = selectedId === null ? null : clusters.find((c) => c.cluster_id === selectedId) ?? null;
+  const zoneName = selectedCluster?.zone_name ?? 'CITY-WIDE';
+
+  const TIER_COLOR: Record<string, string> = { 'Tier 1': '#FF3B3B', 'Tier 2': '#FF9500', 'Tier 3': '#00C853' };
+
+  // Cluster list
   useEffect(() => {
     getClusters(undefined, 150)
-      .then((data) => setClusters([...data].sort((a, b) => b.risk_score - a.risk_score)))
+      .then((d) => setClusters([...d].sort((a, b) => b.risk_score - a.risk_score)))
       .catch(() => setClusters([]));
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    const id = selectedId ?? undefined;
-    Promise.all([
-      getHourlyPattern(id).catch(() => [] as HourlyPoint[]),
-      getHeatmap(id).then((r) => r.matrix).catch(() => ({} as Record<string, Record<number, number>>)),
-    ]).then(([h, hm]) => {
-      setHourly(h);
-      setHeatmap(hm);
-    }).finally(() => setLoading(false));
-  }, [selectedId]);
+  // Heatmap points
+  const loadPoints = useCallback(async (id: number | null) => {
+    setHeatLoading(true); setError(null);
+    try { setPoints(await getGeoHeatmapPoints(id ?? undefined, 3000)); }
+    catch { setError('Heatmap data unavailable'); setPoints([]); }
+    finally { setHeatLoading(false); }
+  }, []);
 
-  const selectedName = useMemo(() => {
-    if (selectedId === null) return 'CITY-WIDE';
-    return clusters.find((c) => c.cluster_id === selectedId)?.zone_name ?? 'CITY-WIDE';
-  }, [clusters, selectedId]);
+  // Hourly pattern
+  const loadHourly = useCallback(async (id: number | null) => {
+    setChartLoading(true);
+    try { setHourly(await getHourlyPattern(id ?? undefined)); }
+    catch { setHourly([]); }
+    finally { setChartLoading(false); }
+  }, []);
 
-  // Build chart data with 24 hours guaranteed
+  useEffect(() => { loadPoints(selectedId); loadHourly(selectedId); }, [selectedId]);
+
   const chartData = useMemo(() => {
-    const byHour: Record<number, number> = {};
-    hourly.forEach((h) => { byHour[h.hour] = h.count; });
-    return HOURS.map((h) => ({ hour: h, count: byHour[h] ?? 0 }));
+    const map: Record<number, number> = {};
+    hourly.forEach((h) => { map[h.hour] = h.count; });
+    return HOURS.map((h) => ({ hour: h, count: map[h] ?? 0 }));
   }, [hourly]);
 
-  // Heatmap: compute max for normalization
-  const heatmapMax = useMemo(() => {
-    let max = 0;
-    Object.values(heatmap).forEach((day) => {
-      Object.values(day).forEach((v) => { if (v > max) max = v; });
-    });
-    return max || 1;
-  }, [heatmap]);
-
-  // Color for heatmap cell
-  function cellColor(value: number): string {
-    if (value === 0) return 'transparent';
-    const t = value / heatmapMax;
-    if (t < 0.25) return `rgba(0, 200, 83, ${0.15 + t * 0.5})`;  // green tones
-    if (t < 0.55) return `rgba(255, 149, 0, ${0.25 + t * 0.5})`;  // amber tones
-    return `rgba(255, 59, 59, ${0.3 + t * 0.7})`;                 // red tones
-  }
+  const peakHour = useMemo(() => chartData.reduce((p, c) => c.count > p.count ? c : p, chartData[0]), [chartData]);
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg-base)',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <NavBar />
 
-      <div style={{ flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* ── Control bar ── */}
+      <div style={{
+        height: 52, background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 14, padding: '0 20px', flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
+          Geographic Analysis
+        </div>
+        <div style={{ width: 1, height: 22, background: 'var(--border)' }} />
+        <span style={{ fontSize: 11, fontFamily: 'DM Sans', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Zone</span>
+        <select
+          value={selectedId ?? ''}
+          onChange={(e) => setSelectedId(e.target.value === '' ? null : Number(e.target.value))}
+          style={{
+            width: 300, background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+            color: 'var(--text)', fontSize: 12, fontFamily: 'DM Sans', height: 32,
+            padding: '0 10px', outline: 'none', cursor: 'pointer', borderRadius: 6,
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--blue)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+        >
+          <option value="">City-wide (all clusters)</option>
+          {clusters.map((c, i) => (
+            <option key={c.cluster_id} value={c.cluster_id}>#{i + 1} — {c.zone_name}</option>
+          ))}
+        </select>
 
-        {/* Selector */}
-        <div style={{
-          background: 'var(--bg-surface)',
-          borderLeft: '3px solid var(--blue)',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-        }}>
+        {selectedCluster && (
           <div style={{
-            fontSize: 10,
-            fontFamily: 'DM Sans',
-            color: 'var(--text-dim)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 9px', borderRadius: 999,
+            background: `${TIER_COLOR[selectedCluster.tier]}18`,
+            border: `1px solid ${TIER_COLOR[selectedCluster.tier]}44`,
+            fontSize: 11, fontFamily: 'IBM Plex Mono', color: TIER_COLOR[selectedCluster.tier],
           }}>
-            CLUSTER
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: TIER_COLOR[selectedCluster.tier] }} />
+            {selectedCluster.tier} · Risk {selectedCluster.risk_score.toFixed(0)}
           </div>
-          <select
-            value={selectedId ?? ''}
-            onChange={(e) => setSelectedId(e.target.value ? Number(e.target.value) : null)}
-            style={{
-              flex: 1,
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-              color: 'var(--text)',
-              fontSize: 13,
-              fontFamily: 'DM Sans',
-              height: 36,
-              padding: '0 12px',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = 'var(--blue)')}
-            onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+        )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {(heatLoading || chartLoading) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cyan)', animation: 'tier1-pulse 1s ease-in-out infinite' }} />
+              LOADING
+            </div>
+          )}
+          {error && <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--tier1)' }}>{error}</div>}
+          {!heatLoading && points.length > 0 && (
+            <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
+              {points.length.toLocaleString()} pts
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Body: map (60%) + chart (40%) ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* MAP */}
+        <div style={{ flex: '0 0 60%', position: 'relative', overflow: 'hidden' }}>
+          <MapContainer
+            center={selectedCluster ? [selectedCluster.centroid_lat, selectedCluster.centroid_lng] : BENGALURU}
+            zoom={selectedCluster ? 14 : 12}
+            style={{ width: '100%', height: '100%' }}
+            zoomControl={true}
+            key={selectedId ?? 'city'}
           >
-            <option value="">City-wide (all clusters)</option>
-            {clusters.map((c, i) => (
-              <option key={c.cluster_id} value={c.cluster_id}>
-                #{i + 1} — {c.zone_name}
-              </option>
-            ))}
-          </select>
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com">CartoDB</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              maxZoom={19}
+            />
+            <HeatLayer points={points} />
+          </MapContainer>
+
+          <InfoOverlay cluster={selectedCluster} />
+          <Legend count={points.length} />
+
+          {!heatLoading && points.length === 0 && !error && (
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+              zIndex: 2000, pointerEvents: 'none', fontSize: 11,
+              fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)', letterSpacing: '0.1em',
+            }}>
+              NO DATA
+            </div>
+          )}
         </div>
 
-        {/* Hourly Pattern Chart */}
+        {/* HOURLY BAR CHART */}
         <div style={{
-          background: 'var(--bg-surface)',
-          borderLeft: '3px solid var(--cyan)',
-          padding: '20px 24px',
+          flex: '0 0 40%', background: 'var(--bg-surface)', borderTop: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}>
-          <div style={{ marginBottom: 4 }}>
-            <div style={{ fontSize: 12, fontFamily: 'DM Sans', fontWeight: 600, color: 'var(--text)', letterSpacing: '0.06em' }}>
-              VIOLATION FREQUENCY BY HOUR — {selectedName}
+          {/* Chart header */}
+          <div style={{
+            padding: '10px 20px 0', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', flexShrink: 0,
+          }}>
+            <div>
+              <div style={{ fontSize: 11, fontFamily: 'DM Sans', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.06em' }}>
+                VIOLATION FREQUENCY BY HOUR — {zoneName}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'DM Sans', marginTop: 2 }}>
+                Hours 12:00–17:00 highlighted · enforcement blindspot window
+              </div>
             </div>
-            <div style={{
-              fontSize: 10,
-              fontFamily: 'DM Sans',
-              color: 'var(--text-dim)',
-              marginTop: 4,
-              display: 'flex',
-              gap: 20,
-              alignItems: 'center',
-            }}>
-              <span>Hours 12:00–17:00 highlighted: peak traffic, lowest enforcement</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 10, height: 10, background: 'var(--blue)', display: 'inline-block' }} /> Normal hours
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 10, height: 10, background: 'var(--tier1)', display: 'inline-block', opacity: 0.7 }} /> Enforcement blindspot
-              </span>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-faint)' }}>
+                <span style={{ width: 9, height: 9, background: 'var(--blue)', display: 'inline-block', borderRadius: 2 }} />
+                Normal
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-faint)' }}>
+                <span style={{ width: 9, height: 9, background: 'rgba(255,59,59,0.65)', display: 'inline-block', borderRadius: 2 }} />
+                Blindspot
+              </div>
+              {peakHour && (
+                <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--cyan)' }}>
+                  Peak {peakHour.hour % 12 === 0 ? 12 : peakHour.hour % 12}:00 {peakHour.hour < 12 ? 'AM' : 'PM'} · {peakHour.count.toLocaleString()} violations
+                </div>
+              )}
             </div>
           </div>
 
-          <div style={{ height: 280, marginTop: 20 }}>
-            {loading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-faint)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
+          <div style={{ flex: 1, padding: '8px 12px 10px' }}>
+            {chartLoading ? (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
                 LOADING…
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 4 }}>
+                <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
                   <XAxis
                     dataKey="hour"
                     stroke="var(--border)"
-                    tick={({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => (
-                      <g transform={`translate(${x},${y})`}>
-                        <text
-                          x={0}
-                          y={0}
-                          dy={12}
-                          textAnchor="middle"
-                          fill={payload.value >= 12 && payload.value <= 17 ? 'var(--tier1)' : 'var(--text-dim)'}
-                          fontSize={9}
-                          fontFamily="IBM Plex Mono"
-                        >
-                          <HourLabel h={payload.value} />
-                        </text>
-                      </g>
-                    )}
                     tickLine={false}
                     interval={0}
+                    tick={({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => {
+                      const h = payload.value;
+                      const blind = h >= 12 && h <= 17;
+                      const labels: Record<number, string> = { 0: '12A', 6: '6A', 12: '12P', 18: '6P', 23: '11P' };
+                      if (!labels[h]) return <g />;
+                      return (
+                        <g transform={`translate(${x},${y})`}>
+                          <text x={0} y={0} dy={12} textAnchor="middle"
+                            fill={blind ? '#FF3B3B' : 'var(--text-dim)'}
+                            fontSize={9} fontFamily="IBM Plex Mono">
+                            {labels[h]}
+                          </text>
+                        </g>
+                      );
+                    }}
                   />
                   <YAxis
                     stroke="none"
-                    tick={{ fontSize: 10, fontFamily: 'IBM Plex Mono', fill: 'var(--text-dim)' }}
-                    width={42}
+                    tick={{ fontSize: 9, fontFamily: 'IBM Plex Mono', fill: 'var(--text-dim)' }}
+                    width={40}
                   />
-                  <Tooltip content={<CustomBarTooltip />} />
-                  <ReferenceLine
-                    x={12}
-                    stroke="var(--tier1)"
-                    strokeOpacity={0.3}
-                    strokeWidth={0}
-                  />
-                  <Bar dataKey="count" radius={0}>
-                    {chartData.map((d, idx) => (
-                      <Cell
-                        key={idx}
-                        fill={d.hour >= 12 && d.hour <= 17 ? 'rgba(255,59,59,0.65)' : 'var(--blue)'}
-                      />
+                  <RechartsTooltip content={<BarTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <ReferenceLine x={12} stroke="rgba(255,59,59,0.15)" strokeWidth={24} />
+                  <Bar dataKey="count" radius={[2, 2, 0, 0]} maxBarSize={20}>
+                    {chartData.map((d, i) => (
+                      <Cell key={i} fill={d.hour >= 12 && d.hour <= 17 ? 'rgba(255,59,59,0.65)' : 'var(--blue)'} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-        </div>
-
-        {/* Heatmap */}
-        <div style={{
-          background: 'var(--bg-surface)',
-          borderLeft: '3px solid var(--purple)',
-          padding: '20px 24px',
-        }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontFamily: 'DM Sans', fontWeight: 600, color: 'var(--text)', letterSpacing: '0.06em' }}>
-              VIOLATION INTENSITY — DAY × HOUR
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'DM Sans', marginTop: 3 }}>
-              Color intensity = violation frequency. Darker red = more violations.
-            </div>
-          </div>
-
-          {loading ? (
-            <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontFamily: 'IBM Plex Mono', fontSize: 11 }}>
-              LOADING…
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '44px repeat(24, 1fr)',
-                gap: 2,
-                minWidth: 700,
-              }}>
-                {/* Column header */}
-                <div />
-                {HOURS.map((h) => (
-                  <div
-                    key={h}
-                    style={{
-                      textAlign: 'center',
-                      fontSize: 9,
-                      fontFamily: 'IBM Plex Mono',
-                      color: h >= 12 && h <= 17 ? 'var(--tier1)' : 'var(--text-faint)',
-                      paddingBottom: 4,
-                    }}
-                  >
-                    {h % 2 === 0 ? h : ''}
-                  </div>
-                ))}
-
-                {/* Rows */}
-                {DAYS.map((day) => (
-                  <>
-                    <div
-                      key={`${day}-label`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        paddingRight: 8,
-                        fontFamily: 'IBM Plex Mono',
-                        fontSize: 10,
-                        color: 'var(--text-dim)',
-                      }}
-                    >
-                      {day}
-                    </div>
-                    {HOURS.map((h) => {
-                      const val = heatmap[day]?.[h] ?? 0;
-                      const bg  = cellColor(val);
-                      return (
-                        <div
-                          key={`${day}-${h}`}
-                          title={`${day} ${h}:00 → ${val} violations`}
-                          style={{
-                            height: 28,
-                            background: bg,
-                            border: '1px solid rgba(26,40,64,0.5)',
-                            transition: 'opacity 0.15s',
-                            cursor: 'default',
-                          }}
-                        />
-                      );
-                    })}
-                  </>
-                ))}
-
-                {/* Bottom hour labels (sparse) */}
-                <div />
-                {HOURS.map((h) => (
-                  <div
-                    key={`lbl-${h}`}
-                    style={{
-                      textAlign: 'center',
-                      fontSize: 8,
-                      fontFamily: 'IBM Plex Mono',
-                      color: 'var(--text-faint)',
-                      paddingTop: 3,
-                    }}
-                  >
-                    {h === 0 ? '12A' : h === 12 ? '12P' : h === 18 ? '6P' : h === 23 ? '11P' : ''}
-                  </div>
-                ))}
-              </div>
-
-              {/* Legend */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--text-faint)' }}>LOW</span>
-                {[0.05, 0.2, 0.4, 0.6, 0.8, 1.0].map((t, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: 20,
-                      height: 12,
-                      background: cellColor(Math.round(t * heatmapMax)),
-                      border: '1px solid var(--border)',
-                    }}
-                  />
-                ))}
-                <span style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--text-faint)' }}>HIGH</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

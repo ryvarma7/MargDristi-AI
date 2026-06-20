@@ -1,8 +1,0 @@
-Build checklist for MargDristi
-
-[x] Create backend structure and files
-[x] Create frontend structure and files
-[x] Implement FastAPI loader and routers
-[x] Implement React/Vite app and UI pages
-[x] Wire backend to frontend and run both
-[ ] Remove temporary test files

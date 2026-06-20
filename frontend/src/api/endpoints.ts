@@ -33,6 +33,11 @@ export async function simulate(request: SimulateRequest): Promise<SimulateRespon
   return response.data;
 }
 
+export async function deploy(request: { cluster_id: number; num_officers: number }) {
+  const response = await client.post('/api/enforcement/deploy', request);
+  return response.data;
+}
+
 export async function getForecasts(cluster_id: number): Promise<ForecastPoint[]> {
   const response = await client.get<ForecastPoint[]>(`/api/forecasts/${cluster_id}`);
   return response.data;
@@ -75,4 +80,60 @@ export async function getVehicleTypes(cluster_id: number): Promise<VehicleTypeBr
     console.error('getVehicleTypes error:', err);
     throw err;
   }
+}
+
+// ==================== Parking Endpoints ====================
+
+export async function getParkingHotspots(limit = 10): Promise<any[]> {
+  const response = await client.get('/api/parking/hotspots', {
+    params: { limit },
+  });
+  return response.data;
+}
+
+export async function getParkingPriorities(limit = 10): Promise<any[]> {
+  const response = await client.get('/api/parking/priorities', {
+    params: { limit },
+  });
+  return response.data;
+}
+
+export async function getParkingHeatmap(): Promise<any> {
+  const response = await client.get('/api/parking/heatmap');
+  return response.data;
+}
+
+export async function getParkingViolations(cluster_id: number, limit = 50): Promise<any[]> {
+  const response = await client.get(`/api/parking/violations/${cluster_id}`, {
+    params: { limit },
+  });
+  return response.data;
+}
+
+export async function deployParkingEnforcement(request: {
+  cluster_id: number;
+  num_officers: number;
+  deploy_date: string;
+}): Promise<any> {
+  const response = await client.post('/api/parking/deploy', request);
+  return response.data;
+}
+
+export async function getParkingEffectiveness(cluster_id?: number, limit = 20): Promise<any[]> {
+  const response = await client.get('/api/parking/effectiveness', {
+    params: { cluster_id, limit },
+  });
+  return response.data;
+}
+
+export async function getParkingStats(): Promise<any> {
+  const response = await client.get('/api/parking/stats');
+  return response.data;
+}
+
+export async function getGeoHeatmapPoints(cluster_id?: number, limit = 3000): Promise<[number, number, number][]> {
+  const response = await client.get<[number, number, number][]>('/api/geo/heatmap-points', {
+    params: { cluster_id, limit },
+  });
+  return response.data;
 }

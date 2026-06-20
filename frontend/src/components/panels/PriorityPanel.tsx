@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import Badge from '../ui/Badge';
+import { deploy as deployApi } from '../../api/endpoints';
 import { Cluster } from '../../types';
 
 const TIER_COLOR: Record<Cluster['tier'], string> = {
@@ -19,7 +22,23 @@ type Props = {
 };
 
 export default function PriorityPanel({ clusters, selectedId, onSelect }: Props) {
+  const [deployingId, setDeployingId] = useState<number | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
   const sorted = [...clusters].sort((a, b) => b.risk_score - a.risk_score).slice(0, 25);
+
+  const handleQuickDeploy = async (cluster: Cluster) => {
+    setDeployingId(cluster.cluster_id);
+    setNotification(null);
+    try {
+      await deployApi({ cluster_id: cluster.cluster_id, num_officers: 3 });
+      setNotification(`3 officers deployed to ${cluster.zone_name}`);
+    } catch (err) {
+      setNotification(`Deployment failed to ${cluster.zone_name}`);
+    } finally {
+      setDeployingId(null);
+      window.setTimeout(() => setNotification(null), 2800);
+    }
+  };
 
   return (
     <div style={{
@@ -53,14 +72,14 @@ export default function PriorityPanel({ clusters, selectedId, onSelect }: Props)
       {/* Column headers */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '28px 1fr 56px 48px',
+        gridTemplateColumns: '28px 1fr 92px 110px',
         gap: '0 8px',
         padding: '6px 14px',
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-elevated)',
         flexShrink: 0,
       }}>
-        {['#', 'ZONE', 'RISK', 'PEAK'].map((h) => (
+        {['#', 'ZONE', 'RISK', 'ACTION'].map((h) => (
           <div key={h} style={{
             fontSize: 9,
             color: 'var(--text-faint)',
@@ -89,18 +108,22 @@ export default function PriorityPanel({ clusters, selectedId, onSelect }: Props)
           sorted.map((c, i) => {
             const isSelected = selectedId === c.cluster_id;
             const tierColor = TIER_COLOR[c.tier];
+            const isPeakTraffic = c.peak_hour >= 12 && c.peak_hour <= 17;
+            const isDeploying = deployingId === c.cluster_id;
 
             return (
-              <button
+              <div
                 key={c.cluster_id}
+                role="button"
                 onClick={() => onSelect(c)}
                 style={{
                   width: '100%',
                   display: 'grid',
-                  gridTemplateColumns: '28px 1fr 56px 48px',
+                  gridTemplateColumns: '28px 1fr 92px 110px',
                   gap: '0 8px',
                   alignItems: 'center',
                   padding: '10px 14px',
+                  minHeight: 52,
                   borderLeft: `3px solid ${tierColor}`,
                   borderBottom: '1px solid var(--border)',
                   background: isSelected ? 'var(--blue-dim)' : i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-elevated)',
@@ -114,8 +137,10 @@ export default function PriorityPanel({ clusters, selectedId, onSelect }: Props)
                 onMouseLeave={(e) => {
                   if (!isSelected) (e.currentTarget as HTMLElement).style.background = i % 2 === 0 ? 'var(--bg-surface)' : 'var(--bg-elevated)';
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') onSelect(c);
+                }}
               >
-                {/* Rank */}
                 <div style={{
                   fontFamily: 'IBM Plex Mono',
                   fontSize: 11,
@@ -124,50 +149,101 @@ export default function PriorityPanel({ clusters, selectedId, onSelect }: Props)
                   {i + 1}
                 </div>
 
-                {/* Zone name */}
-                <div>
-                  <div style={{
-                    fontSize: 12,
-                    fontFamily: 'DM Sans',
-                    color: isSelected ? 'white' : 'var(--text)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 500,
-                  }}>
-                    {c.zone_name}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <Badge tier={c.tier} />
+                    <div style={{
+                      fontSize: 12,
+                      fontFamily: 'DM Sans',
+                      color: isSelected ? 'white' : 'var(--text)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontWeight: 500,
+                      minWidth: 0,
+                    }}>
+                      {c.zone_name}
+                    </div>
                   </div>
                   <div style={{
                     fontSize: 10,
                     fontFamily: 'DM Sans',
                     color: 'var(--text-faint)',
-                    marginTop: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}>
                     {c.top_violation?.slice(0, 22) ?? '—'}
                   </div>
                 </div>
 
-                {/* Risk score */}
-                <div style={{
-                  fontFamily: 'IBM Plex Mono',
-                  fontSize: 16,
-                  fontWeight: 500,
-                  color: 'var(--purple)',
-                  textAlign: 'right',
-                }}>
-                  {c.risk_score.toFixed(0)}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{
+                    fontFamily: 'IBM Plex Mono',
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--purple)',
+                  }}>
+                    {c.risk_score.toFixed(0)}
+                  </div>
+                  <div style={{
+                    fontFamily: 'IBM Plex Mono',
+                    fontSize: 10,
+                    color: 'var(--cyan)',
+                    textAlign: 'right',
+                  }}>
+                    {c.violation_count.toLocaleString()} violations
+                  </div>
                 </div>
 
-                {/* Peak */}
-                <div style={{
-                  fontFamily: 'IBM Plex Mono',
-                  fontSize: 10,
-                  color: 'var(--cyan)',
-                  textAlign: 'right',
-                }}>
-                  {fmtHour(c.peak_hour)}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <div style={{
+                      fontFamily: 'IBM Plex Mono',
+                      fontSize: 10,
+                      color: 'var(--cyan)',
+                    }}>
+                      {fmtHour(c.peak_hour)}
+                    </div>
+                    {isPeakTraffic ? (
+                      <span
+                        title="Peak traffic hours - usually unenforced"
+                        style={{
+                          width: 22,
+                          height: 3,
+                          background: 'var(--tier1)',
+                          borderRadius: 999,
+                          opacity: 0.75,
+                        }}
+                      />
+                    ) : (
+                      <span style={{ height: 3, display: 'block' }} />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickDeploy(c);
+                    }}
+                    disabled={isDeploying}
+                    style={{
+                      background: isDeploying ? 'rgba(0, 200, 255, 0.14)' : 'rgba(0, 200, 255, 0.12)',
+                      color: 'var(--cyan)',
+                      border: '1px solid rgba(0, 200, 255, 0.22)',
+                      borderRadius: 6,
+                      padding: '6px 8px',
+                      fontSize: 10,
+                      fontFamily: 'IBM Plex Mono',
+                      fontWeight: 700,
+                      cursor: isDeploying ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {isDeploying ? 'DEPLOYING' : 'DEPLOY 3'}
+                  </button>
                 </div>
-              </button>
+              </div>
             );
           })
         )}

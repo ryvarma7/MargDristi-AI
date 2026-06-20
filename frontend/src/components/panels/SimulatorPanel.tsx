@@ -1,11 +1,31 @@
-import { useMemo } from 'react';
-import { Cluster } from '../../types';
+import { useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import type { Cluster } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import useSimulate from '../../hooks/useSimulate';
+import { deploy as deployApi } from '../../api/endpoints';
 
 const now = new Date();
 const CURRENT_HOUR = now.getHours();
 const CURRENT_DOW  = now.getDay();
+
+// Build a list of the next 48 half-hour slots from now
+function buildTimeSlots(): { label: string; iso: string }[] {
+  const slots: { label: string; iso: string }[] = [];
+  const base = new Date();
+  base.setSeconds(0, 0);
+  base.setMinutes(base.getMinutes() >= 30 ? 30 : 0);
+  for (let i = 0; i < 48; i++) {
+    const d = new Date(base.getTime() + i * 30 * 60 * 1000);
+    const hh = d.getHours();
+    const mm = d.getMinutes() === 0 ? '00' : '30';
+    const period = hh < 12 ? 'AM' : 'PM';
+    const display = `${hh % 12 === 0 ? 12 : hh % 12}:${mm} ${period}`;
+    const dayLabel = i === 0 ? 'Now' : d.toDateString() !== base.toDateString() ? `Tomorrow ${display}` : display;
+    slots.push({ label: dayLabel, iso: d.toISOString() });
+  }
+  return slots;
+}
 
 function StatCell({
   label,
@@ -62,6 +82,9 @@ export default function SimulatorPanel({ cluster }: Props) {
   const numOfficers    = useAppStore((s) => s.numOfficers);
   const setNumOfficers = useAppStore((s) => s.setNumOfficers);
   const selectCluster  = useAppStore((s) => s.selectCluster);
+  const addDeployment  = useAppStore((s) => s.addDeployment);
+  const addSchedule    = useAppStore((s) => s.addSchedule);
+  const deployments    = useAppStore((s) => s.deployments);
 
   const request = useMemo(
     () =>
@@ -72,10 +95,91 @@ export default function SimulatorPanel({ cluster }: Props) {
   );
 
   const { result, loading } = useSimulate(request);
+  const [deploying, setDeploying] = useState(false);
+  const [deployMsg, setDeployMsg] = useState<string | null>(null);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<string>('');
+  const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
+
+  const timeSlots = useMemo(() => buildTimeSlots(), []);
 
   const sliderPct = ((numOfficers - 1) / 4) * 100;
 
   if (!cluster) {
+    if (deployments.length > 0) {
+      return (
+        <div style={{
+          height: '100%',
+          background: 'var(--bg-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '14px 16px',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div style={{ fontSize: 11, fontFamily: 'DM Sans', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Recent Deployments
+            </div>
+            <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--cyan)' }}>
+              {deployments.length} zone{deployments.length > 1 ? 's' : ''}
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {deployments.map((deployment) => (
+              <div key={deployment.cluster_id} style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto',
+                gap: 12,
+                alignItems: 'center',
+                padding: 12,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontFamily: 'DM Sans', color: 'var(--text)', fontWeight: 600 }}>
+                    {deployment.zone_name}
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--cyan)' }}>
+                    {deployment.num_officers} officer{deployment.num_officers === 1 ? '' : 's'} deployed
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
+                  {new Date(deployment.deployedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            ))}
+            <div style={{ height: 180, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)' }}>
+              <MapContainer
+                center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
+                zoom={12}
+                style={{ width: '100%', height: '100%' }}
+                zoomControl={false}
+                attributionControl={false}
+                dragging={false}
+                doubleClickZoom={false}
+                scrollWheelZoom={false}
+                touchZoom={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com">CartoDB</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                />
+                {deployments.map((deployment) => (
+                  <Marker key={deployment.cluster_id} position={[deployment.centroid_lat, deployment.centroid_lng]} />
+                ))}
+              </MapContainer>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{
         height: '100%',
@@ -269,6 +373,73 @@ export default function SimulatorPanel({ cluster }: Props) {
           />
         </div>
 
+        {deployments.length > 0 && (
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <div style={{ fontSize: 11, fontFamily: 'DM Sans', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Deployments
+              </div>
+              <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--cyan)' }}>
+                {deployments.length} location{deployments.length > 1 ? 's' : ''}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {deployments.slice(0, 3).map((deployment) => (
+                <div key={deployment.cluster_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontFamily: 'DM Sans', color: 'var(--text)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {deployment.zone_name}
+                    </div>
+                    <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
+                      {deployment.num_officers} officer{deployment.num_officers === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
+                    {new Date(deployment.deployedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: 130, borderRadius: 10, overflow: 'hidden' }}>
+              <MapContainer
+                center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
+                zoom={12}
+                style={{ width: '100%', height: '100%' }}
+                zoomControl={false}
+                attributionControl={false}
+                dragging={false}
+                doubleClickZoom={false}
+                scrollWheelZoom={false}
+                touchZoom={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com">CartoDB</a>'
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                />
+                {deployments.map((deployment) => (
+                  <Marker
+                    key={deployment.cluster_id}
+                    position={[deployment.centroid_lat, deployment.centroid_lng]}
+                  />
+                ))}
+              </MapContainer>
+            </div>
+          </div>
+        )}
+
         {prevRate !== null && (
           <div style={{
             fontFamily: 'IBM Plex Mono',
@@ -277,6 +448,89 @@ export default function SimulatorPanel({ cluster }: Props) {
             textAlign: 'center',
           }}>
             {prevRate}% prevention rate · CIS impact reduced by {Math.round((result?.violations_prevented ?? 0) * 0.2)} pts
+          </div>
+        )}
+
+        {/* Scheduler panel — shown inline when SCHEDULE is pressed */}
+        {showScheduler && (
+          <div style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid rgba(255, 200, 0, 0.35)',
+            borderRadius: 12,
+            padding: '14px 14px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: '#FFC800', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>
+                📅 Schedule Deployment
+              </div>
+              <button
+                onClick={() => { setShowScheduler(false); setScheduleMsg(null); }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ fontSize: 11, fontFamily: 'DM Sans', color: 'var(--text-dim)' }}>
+              {cluster.zone_name} · {numOfficers} officer{numOfficers === 1 ? '' : 's'}
+            </div>
+            <select
+              value={selectedSlot}
+              onChange={(e) => setSelectedSlot(e.target.value)}
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid rgba(255, 200, 0, 0.3)',
+                borderRadius: 8,
+                color: selectedSlot ? '#FFC800' : 'var(--text-dim)',
+                fontFamily: 'IBM Plex Mono',
+                fontSize: 12,
+                padding: '8px 10px',
+                outline: 'none',
+                width: '100%',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="" disabled>Select time slot…</option>
+              {timeSlots.map((slot) => (
+                <option key={slot.iso} value={slot.iso}>{slot.label}</option>
+              ))}
+            </select>
+            <button
+              disabled={!selectedSlot}
+              onClick={() => {
+                if (!selectedSlot) return;
+                addSchedule({
+                  cluster_id: cluster.cluster_id,
+                  zone_name: cluster.zone_name,
+                  centroid_lat: cluster.centroid_lat,
+                  centroid_lng: cluster.centroid_lng,
+                  num_officers: numOfficers,
+                  scheduled_time: selectedSlot,
+                });
+                const label = timeSlots.find((s) => s.iso === selectedSlot)?.label ?? '';
+                setScheduleMsg(`Scheduled for ${label}`);
+                setShowScheduler(false);
+                setSelectedSlot('');
+                selectCluster(null);
+              }}
+              style={{
+                background: selectedSlot ? '#FFC800' : 'rgba(255,200,0,0.15)',
+                color: selectedSlot ? '#06080F' : 'rgba(255,200,0,0.4)',
+                border: 'none',
+                height: 36,
+                fontFamily: 'DM Sans',
+                fontWeight: 700,
+                fontSize: 12,
+                letterSpacing: '0.06em',
+                cursor: selectedSlot ? 'pointer' : 'not-allowed',
+                borderRadius: 8,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              CONFIRM SCHEDULE
+            </button>
           </div>
         )}
 
@@ -296,21 +550,56 @@ export default function SimulatorPanel({ cluster }: Props) {
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--blue-dim)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--blue)')}
+          onClick={async () => {
+            if (!cluster) return;
+            setDeploying(true);
+            setDeployMsg(null);
+            try {
+              const resp = await deployApi({ cluster_id: cluster.cluster_id, num_officers: numOfficers });
+              setDeployMsg(resp?.message ?? 'Deployed');
+              addDeployment({
+                cluster_id: cluster.cluster_id,
+                zone_name: cluster.zone_name,
+                centroid_lat: cluster.centroid_lat,
+                centroid_lng: cluster.centroid_lng,
+                num_officers: numOfficers,
+                deployedAt: new Date().toISOString(),
+              });
+              selectCluster(null);
+            } catch (err) {
+              console.error('deploy error', err);
+              setDeployMsg('Deployment failed');
+            } finally {
+              setDeploying(false);
+            }
+          }}
           >
-            DEPLOY NOW
+            {deploying ? 'DEPLOYING…' : 'DEPLOY NOW'}
           </button>
-          <button style={{
-            background: 'transparent',
-            color: 'var(--blue)',
-            border: '1px solid var(--border-active)',
-            height: 36,
-            fontFamily: 'DM Sans',
-            fontSize: 12,
-            letterSpacing: '0.06em',
-            cursor: 'pointer',
-          }}>
-            SCHEDULE
+          <button
+            onClick={() => { setShowScheduler((v) => !v); setScheduleMsg(null); }}
+            style={{
+              background: showScheduler ? 'rgba(255,200,0,0.12)' : 'transparent',
+              color: '#FFC800',
+              border: '1px solid rgba(255,200,0,0.4)',
+              height: 36,
+              fontFamily: 'DM Sans',
+              fontSize: 12,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+          >
+            {showScheduler ? 'CANCEL' : 'SCHEDULE'}
           </button>
+          {scheduleMsg && (
+            <div style={{ fontSize: 12, color: '#FFC800', textAlign: 'center', fontFamily: 'IBM Plex Mono' }}>
+              ✓ {scheduleMsg}
+            </div>
+          )}
+          {deployMsg && (
+            <div style={{ fontSize: 12, color: 'var(--text-faint)', textAlign: 'center' }}>{deployMsg}</div>
+          )}
         </div>
       </div>
     </div>

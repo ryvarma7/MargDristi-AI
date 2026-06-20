@@ -56,6 +56,7 @@ export default function NavBar() {
           { to: '/', label: 'Command Center' },
           { to: '/zones', label: 'Zone Explorer' },
           { to: '/temporal', label: 'Temporal Analysis' },
+          { to: '/parking', label: 'Parking Intelligence' },
         ].map(({ to, label }) => (
           <NavLink
             key={to}
