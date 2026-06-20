@@ -79,12 +79,15 @@ class ModelLoader:
             return None
 
     def is_ready(self) -> bool:
+        """Core data CSVs are the source of truth for all API endpoints.
+        HDBSCAN and Prophet models are optional; their absence causes degraded
+        (not broken) operation — forecasts and cluster similarity won't work
+        but the main dashboard data will be served normally."""
         return (
-            self.dbscan is not None and
-            self.simulator is not None and
             self.clusters is not None and
             self.violations is not None
         )
+
 
     def predict_simulator(self, cluster_id: int, num_officers: int, hour: int, day_of_week: int) -> float:
         if self.simulator is None or self.clusters is None:
@@ -158,6 +161,39 @@ class ModelLoader:
             for _, row in grouped.iterrows()
         ]
 
+    def get_violation_types(self, cluster_id: int, top_n: int = 10) -> List[Dict]:
+        """Return top violation types and their counts for a cluster."""
+        if self.violations is None:
+            return []
+        df = self.violations[self.violations["cluster_id"] == cluster_id]
+        if df.empty:
+            return []
+        grouped = df.groupby("primary_violation").size().reset_index(name="count")
+        grouped = grouped.sort_values("count", ascending=False).head(top_n)
+        return [
+            {"violation_type": str(row["primary_violation"]), "count": int(row["count"])}
+            for _, row in grouped.iterrows()
+        ]
+
+    def get_vehicle_types(self, cluster_id: int, top_n: int = 10) -> List[Dict]:
+        """Return vehicle type distribution for a cluster."""
+        if self.violations is None:
+            return []
+        df = self.violations[self.violations["cluster_id"] == cluster_id]
+        if df.empty:
+            return []
+        grouped = df.groupby("vehicle_type").size().reset_index(name="count")
+        grouped = grouped.sort_values("count", ascending=False).head(top_n)
+        total = int(grouped["count"].sum())
+        return [
+            {
+                "vehicle_type": str(row["vehicle_type"]),
+                "count": int(row["count"]),
+                "pct": round(100 * int(row["count"]) / total, 1) if total > 0 else 0.0,
+            }
+            for _, row in grouped.iterrows()
+        ]
+
     def get_heatmap_matrix(self, cluster_id: Optional[int] = None) -> Dict:
         matrix = {}
         if self.heatmap is None:
@@ -187,5 +223,10 @@ class ModelLoader:
         return matrix
 
 
-loader = ModelLoader(Path(__file__).resolve().parent.parent / "models", Path(__file__).resolve().parent.parent / "data")
-loader.load_all()
+loader = ModelLoader(
+    Path(__file__).resolve().parent.parent.parent / "models",
+    Path(__file__).resolve().parent.parent.parent / "data",
+)
+# Note: loader.load_all() is called by the FastAPI startup event in main.py.
+# Do NOT call it here — it would load all data twice at startup.
+

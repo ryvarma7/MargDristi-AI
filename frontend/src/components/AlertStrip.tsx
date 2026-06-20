@@ -1,47 +1,74 @@
 import { Cluster } from '../types';
 
-const messageForTier = (cluster: Cluster): string => {
-  if (cluster.tier === 'Tier 1') {
-    return `${cluster.zone_name} — Peak window approaching (${cluster.peak_hour % 12 === 0 ? 12 : cluster.peak_hour % 12}:00 ${cluster.peak_hour < 12 ? 'AM' : 'PM'}). No officer assigned.`;
-  }
-  return `${cluster.zone_name} — Violation rate above average. Consider deployment.`;
-};
+function fmtHour(h: number): string {
+  const period = h < 12 ? 'AM' : 'PM';
+  const disp   = h % 12 === 0 ? 12 : h % 12;
+  return `${disp}:00 ${period}`;
+}
 
-const tickerKeyframes = `
-  @keyframes ticker-scroll {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
-  }
-`;
+function buildAlerts(clusters: Cluster[]): { dot: string; text: string }[] {
+  const tier1 = clusters
+    .filter((c) => c.tier === 'Tier 1')
+    .sort((a, b) => b.risk_score - a.risk_score)
+    .slice(0, 4);
+
+  const tier2 = clusters
+    .filter((c) => c.tier === 'Tier 2')
+    .sort((a, b) => b.risk_score - a.risk_score)
+    .slice(0, 3);
+
+  const alerts: { dot: string; text: string }[] = [
+    ...tier1.map((c) => ({
+      dot: 'var(--tier1)',
+      text: `${c.zone_name} — Peak window approaching (${fmtHour(c.peak_hour)}). No officer assigned. Risk: ${c.risk_score.toFixed(0)}`,
+    })),
+    ...tier2.map((c) => ({
+      dot: 'var(--tier2)',
+      text: `${c.zone_name} — Violation rate above average. Consider deployment. Risk: ${c.risk_score.toFixed(0)}`,
+    })),
+  ];
+
+  return alerts.length ? alerts : [
+    { dot: 'var(--tier2)', text: 'Connecting to MargDristi backend… Start uvicorn at localhost:8000' },
+  ];
+}
 
 export default function AlertStrip({ clusters }: { clusters: Cluster[] }) {
-  const alerts = clusters
-    .filter((cluster) => cluster.tier === 'Tier 1')
-    .slice(0, 3)
-    .map((cluster) => ({
-      tier: cluster.tier,
-      text: messageForTier(cluster),
-    }));
+  const alerts = buildAlerts(clusters);
+
+  // Duplicate for seamless loop
+  const doubled = [...alerts, ...alerts];
 
   return (
-    <div className="relative overflow-hidden bg-[#0D1525] border-t border-[var(--border)] h-9">
-      <style>{tickerKeyframes}</style>
-      <div
-        className="absolute whitespace-nowrap py-2 animate-[ticker-scroll_18s_linear_infinite]"
-        style={{
-          display: 'inline-flex',
-          gap: '50px',
-        }}
-      >
-        {alerts.map((alert, index) => (
-          <div key={index} className="flex items-center gap-2 text-sm text-[var(--text-dim)]">
-            <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${
-                alert.tier === 'Tier 1' ? 'bg-[var(--tier1)]' : 'bg-[var(--tier2)]'
-              }`}
-            />
-            <span>{alert.text}</span>
-          </div>
+    <div style={{
+      height: 36,
+      background: '#0D1525',
+      borderTop: '1px solid var(--border)',
+      overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'center',
+      flexShrink: 0,
+    }}>
+      <div className="ticker-inner">
+        {doubled.map((a, i) => (
+          <span key={i} style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 12,
+            fontFamily: 'DM Sans',
+            color: 'var(--text-dim)',
+          }}>
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: a.dot,
+              display: 'inline-block',
+              flexShrink: 0,
+            }} />
+            {a.text}
+          </span>
         ))}
       </div>
     </div>

@@ -44,12 +44,24 @@ export interface HeatmapOut {
   matrix: Record<string, Record<number, number>>;
 }
 
+export interface ViolationTypeBreakdown {
+  violation_type: string;
+  count: number;
+}
+
+export interface VehicleTypeBreakdown {
+  vehicle_type: string;
+  count: number;
+  pct: number;
+}
+
 export interface HealthStatus {
   status: string;
   dbscan_loaded: boolean;
   simulator_loaded: boolean;
   prophet_models_loaded: number;
   clusters_loaded: boolean;
+  violations_loaded: boolean;
   total_clusters: number;
   total_violations: number;
 }

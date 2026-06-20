@@ -7,6 +7,8 @@ import {
   HealthStatus,
   SimulateRequest,
   SimulateResponse,
+  ViolationTypeBreakdown,
+  VehicleTypeBreakdown,
 } from '../types';
 
 export async function getClusters(tier?: string, limit = 50): Promise<Cluster[]> {
@@ -53,4 +55,24 @@ export async function getHeatmap(cluster_id?: number): Promise<HeatmapOut> {
 export async function getHealth(): Promise<HealthStatus> {
   const response = await client.get<HealthStatus>('/api/health');
   return response.data;
+}
+
+export async function getViolationTypes(cluster_id: number): Promise<ViolationTypeBreakdown[]> {
+  try {
+    const response = await client.get<ViolationTypeBreakdown[]>(`/api/clusters/${cluster_id}/violation-types`);
+    return response.data;
+  } catch (err) {
+    console.error('getViolationTypes error:', err);
+    throw err;
+  }
+}
+
+export async function getVehicleTypes(cluster_id: number): Promise<VehicleTypeBreakdown[]> {
+  try {
+    const response = await client.get<VehicleTypeBreakdown[]>(`/api/clusters/${cluster_id}/vehicle-types`);
+    return response.data;
+  } catch (err) {
+    console.error('getVehicleTypes error:', err);
+    throw err;
+  }
 }

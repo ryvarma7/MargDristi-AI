@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -20,3 +20,29 @@ def get_cluster(cluster_id: int):
     if cluster is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     return ClusterOut(**cluster)
+
+
+@router.get("/{cluster_id}/violation-types", response_model=List[Dict[str, Any]])
+def get_violation_types(cluster_id: int):
+    try:
+        cluster = loader.get_cluster(cluster_id)
+        if cluster is None:
+            raise HTTPException(status_code=404, detail="Cluster not found")
+        return loader.get_violation_types(cluster_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/{cluster_id}/vehicle-types", response_model=List[Dict[str, Any]])
+def get_vehicle_types(cluster_id: int):
+    try:
+        cluster = loader.get_cluster(cluster_id)
+        if cluster is None:
+            raise HTTPException(status_code=404, detail="Cluster not found")
+        return loader.get_vehicle_types(cluster_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

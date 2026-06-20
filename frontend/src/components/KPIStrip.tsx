@@ -1,37 +1,116 @@
 import { Cluster } from '../types';
 
-function formatNumber(value: number): string {
-  if (value >= 1000) {
-    return `${Math.round(value / 100) / 10}K`;
-  }
-  return `${value}`;
+function formatBig(n: number): string {
+  if (n >= 100000) return `${(n / 1000).toFixed(0)}K`;
+  if (n >= 1000)   return `${(n / 1000).toFixed(1)}K`;
+  return `${n}`;
 }
 
-type Props = {
-  clusters: Cluster[];
-};
+function fmtHour(h: number): string {
+  const period = h < 12 ? 'AM' : 'PM';
+  const disp   = h % 12 === 0 ? 12 : h % 12;
+  return `${disp}:00 ${period}`;
+}
+
+type Props = { clusters: Cluster[] };
 
 export default function KPIStrip({ clusters }: Props) {
-  const tier1Count = clusters.filter((cluster) => cluster.tier === 'Tier 1').length;
-  const topCluster = clusters.sort((a, b) => b.risk_score - a.risk_score)[0];
-  const avgCis = clusters.length
-    ? clusters.reduce((sum, cluster) => sum + cluster.avg_cis, 0) / clusters.length
+  const sorted    = [...clusters].sort((a, b) => b.risk_score - a.risk_score);
+  const tier1     = clusters.filter((c) => c.tier === 'Tier 1');
+  const topCluster = sorted[0];
+  const totalViol  = clusters.reduce((s, c) => s + c.violation_count, 0);
+  const avgCis     = clusters.length
+    ? clusters.reduce((s, c) => s + c.avg_cis, 0) / clusters.length
     : 0;
-  const peakHour = topCluster?.peak_hour ?? 0;
-  const peakLabel = `${peakHour % 12 === 0 ? 12 : peakHour % 12}:00 ${peakHour < 12 ? 'AM' : 'PM'}`;
+  const nextPeak  = tier1.length
+    ? Math.min(...tier1.map((c) => c.peak_hour))
+    : topCluster?.peak_hour ?? 0;
+
+  const kpis = [
+    {
+      label: 'ACTIVE TIER 1',
+      value: tier1.length.toString(),
+      color: 'var(--tier1)',
+      sub: 'deploy-now zones',
+    },
+    {
+      label: 'TOP RISK ZONE',
+      value: (topCluster?.zone_name ?? '—').slice(0, 18),
+      color: 'var(--cyan)',
+      sub: topCluster ? `Risk ${topCluster.risk_score.toFixed(0)}` : '—',
+      small: true,
+    },
+    {
+      label: 'NEXT PEAK',
+      value: fmtHour(nextPeak),
+      color: 'var(--cyan)',
+      sub: 'estimated from Tier 1',
+    },
+    {
+      label: 'AVG CIS SCORE',
+      value: avgCis.toFixed(2),
+      color: 'var(--purple)',
+      sub: 'congestion impact',
+    },
+    {
+      label: 'TOTAL VIOLATIONS',
+      value: formatBig(totalViol),
+      color: 'var(--cyan)',
+      sub: 'in dataset',
+    },
+  ];
 
   return (
-    <div className="flex h-20 items-center gap-3 px-4 bg-[var(--bg-surface)] border-b border-[var(--border)]">
-      {[
-        { label: 'ACTIVE TIER 1', value: tier1Count, valueClass: 'text-[var(--cyan)]' },
-        { label: 'TOP RISK ZONE', value: topCluster?.zone_name ?? 'N/A', valueClass: 'text-[var(--cyan)]' },
-        { label: 'PEAK IN', value: peakLabel, valueClass: 'text-[var(--cyan)]' },
-        { label: 'AVG CIS SCORE', value: avgCis.toFixed(1), valueClass: 'text-[var(--purple)]' },
-        { label: 'TOTAL VIOLATIONS', value: formatNumber(clusters.reduce((sum, cluster) => sum + cluster.violation_count, 0)), valueClass: 'text-[var(--cyan)]' },
-      ].map((item) => (
-        <div key={item.label} className="flex-1 border-r border-[var(--border)] last:border-r-0 px-3 py-2">
-          <div className="text-[11px] uppercase text-[var(--text-dim)]">{item.label}</div>
-          <div className={`mt-1 text-lg font-semibold mono ${item.valueClass}`}>{item.value}</div>
+    <div style={{
+      height: 76,
+      background: 'var(--bg-surface)',
+      borderBottom: '1px solid var(--border)',
+      display: 'flex',
+      alignItems: 'stretch',
+      flexShrink: 0,
+    }}>
+      {kpis.map((k, i) => (
+        <div
+          key={k.label}
+          style={{
+            flex: 1,
+            borderRight: i < kpis.length - 1 ? '1px solid var(--border)' : 'none',
+            padding: '10px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{
+            fontSize: 10,
+            fontFamily: 'DM Sans',
+            color: 'var(--text-dim)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            marginBottom: 4,
+          }}>
+            {k.label}
+          </div>
+          <div style={{
+            fontFamily: 'IBM Plex Mono',
+            fontSize: k.small ? 14 : 20,
+            fontWeight: 500,
+            color: k.color,
+            lineHeight: 1.1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {clusters.length === 0 ? '—' : k.value}
+          </div>
+          <div style={{
+            fontSize: 10,
+            color: 'var(--text-faint)',
+            fontFamily: 'DM Sans',
+            marginTop: 2,
+          }}>
+            {k.sub}
+          </div>
         </div>
       ))}
     </div>

@@ -1,36 +1,102 @@
 import { NavLink } from 'react-router-dom';
 import { useAppStore } from '../store/appStore';
 
-const linkClass = 'text-[var(--text-dim)] px-3 py-2 text-sm';
-const activeClass = 'text-[var(--blue)] border-b-2 border-[var(--blue)]';
-
 export default function NavBar() {
-  const health = useAppStore((state) => state.health);
-  const statusColor = health?.status === 'healthy' ? 'bg-[#00C853]' : 'bg-[#FF3B3B]';
+  const health = useAppStore((s) => s.health);
+  const isOnline = health?.status === 'healthy';
 
   return (
-    <div className="flex items-center justify-between h-12 px-4 bg-[var(--bg-surface)] border-b border-[var(--border)]">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center bg-[var(--blue)] text-white text-sm font-bold" style={{ borderRadius: 0 }}>
-          M
-        </div>
-        <span className="font-semibold tracking-[0.15em] text-sm">MARGDRISTI</span>
+    <nav
+      style={{
+        height: 48,
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 20px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        flexShrink: 0,
+      }}
+    >
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <polygon
+            points="14,2 26,9 26,19 14,26 2,19 2,9"
+            fill="var(--blue)"
+            stroke="var(--border-active)"
+            strokeWidth="1"
+          />
+          <text
+            x="14" y="18"
+            textAnchor="middle"
+            fill="white"
+            fontSize="11"
+            fontFamily="IBM Plex Mono"
+            fontWeight="500"
+          >M</text>
+        </svg>
+        <span style={{
+          fontFamily: 'DM Sans',
+          fontWeight: 700,
+          fontSize: 14,
+          letterSpacing: '0.18em',
+          color: 'var(--text)',
+        }}>
+          MARGDRISTI
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <NavLink to="/" className={({ isActive }) => `${linkClass} ${isActive ? activeClass : ''}`}>
-          Command Center
-        </NavLink>
-        <NavLink to="/zones" className={({ isActive }) => `${linkClass} ${isActive ? activeClass : ''}`}>
-          Zone Explorer
-        </NavLink>
-        <NavLink to="/temporal" className={({ isActive }) => `${linkClass} ${isActive ? activeClass : ''}`}>
-          Temporal Analysis
-        </NavLink>
+
+      {/* Nav links */}
+      <div style={{ display: 'flex', alignItems: 'stretch', height: '100%' }}>
+        {[
+          { to: '/', label: 'Command Center' },
+          { to: '/zones', label: 'Zone Explorer' },
+          { to: '/temporal', label: 'Temporal Analysis' },
+        ].map(({ to, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 16px',
+              fontSize: 13,
+              fontFamily: 'DM Sans',
+              color: isActive ? 'var(--blue)' : 'var(--text-dim)',
+              borderBottom: isActive ? '2px solid var(--blue)' : '2px solid transparent',
+              textDecoration: 'none',
+              transition: 'color 0.15s',
+            })}
+          >
+            {label}
+          </NavLink>
+        ))}
       </div>
-      <div className="flex items-center gap-2 text-[var(--text-dim)] text-xs mono">
-        <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`} />
-        SYSTEM ONLINE
+
+      {/* Status indicator */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontFamily: 'IBM Plex Mono',
+        fontSize: 10,
+        color: 'var(--text-dim)',
+      }}>
+        <span style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: isOnline ? 'var(--tier3)' : health === null ? 'var(--tier2)' : 'var(--tier1)',
+          display: 'inline-block',
+          boxShadow: isOnline ? '0 0 6px var(--tier3)' : 'none',
+        }} />
+        {isOnline ? 'SYSTEM ONLINE' : health === null ? 'CONNECTING...' : 'DEGRADED'}
       </div>
-    </div>
+    </nav>
   );
 }
