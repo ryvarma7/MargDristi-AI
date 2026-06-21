@@ -1,4 +1,5 @@
 import glob
+import io
 import joblib
 import pickle
 from pathlib import Path
@@ -6,6 +7,14 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+import requests
+
+# Config imports – use try/except so the loader works even when imported
+# from outside the backend package during testing.
+try:
+    from config import DATA_DIR, HF_DATASET_URLS, get_cache_dir  # type: ignore
+except ModuleNotFoundError:
+    from backend.config import DATA_DIR, HF_DATASET_URLS, get_cache_dir  # type: ignore
 
 
 class ModelLoader:
@@ -88,11 +97,85 @@ class ModelLoader:
         self.status["parking_heatmap"] = self.parking_heatmap is not None
 
     def _load_csv(self, name: str):
+        """Load a CSV by name.
+
+        Resolution order:
+        1. If the file is one of the HuggingFace-hosted datasets:
+           a. Check the cache directory; load from cache if present.
+           b. Otherwise download from HuggingFace, save to cache, then load.
+        2. For every other CSV, load directly from the data directory.
+        """
+        if name in HF_DATASET_URLS:
+            return self._load_hf_csv(name)
+
         path = self.data_dir / name
         try:
             return pd.read_csv(path)
-        except Exception:
+        except FileNotFoundError:
+            print(f"[loader] WARNING: local file not found: {path}")
             return None
+        except pd.errors.ParserError as exc:
+            print(f"[loader] ERROR: corrupted CSV '{name}': {exc}")
+            return None
+        except Exception as exc:
+            print(f"[loader] ERROR loading '{name}': {exc}")
+            return None
+
+    def _load_hf_csv(self, name: str):
+        """Download from HuggingFace (with local caching) or load from cache."""
+        url = HF_DATASET_URLS[name]
+        cache_dir = get_cache_dir()
+        cached_path = cache_dir / name
+
+        # ── 1. Cache hit ──────────────────────────────────────────────────────
+        if cached_path.exists():
+            print(f"[loader] Loading dataset from cache: {cached_path}")
+            try:
+                df = pd.read_csv(cached_path)
+                if df.empty:
+                    raise ValueError("Cached file is empty")
+                return df
+            except (pd.errors.ParserError, ValueError) as exc:
+                print(f"[loader] WARNING: cached file is corrupted ({exc}), re-downloading…")
+                cached_path.unlink(missing_ok=True)
+
+        # ── 2. Cache miss – download from HuggingFace ─────────────────────────
+        print(f"[loader] Downloading dataset from Hugging Face: {url}")
+        try:
+            response = requests.get(url, timeout=120)
+            response.raise_for_status()
+        except requests.exceptions.ConnectionError as exc:
+            print(f"[loader] ERROR: network failure while downloading '{name}': {exc}")
+            return None
+        except requests.exceptions.Timeout:
+            print(f"[loader] ERROR: request timed out while downloading '{name}'")
+            return None
+        except requests.exceptions.HTTPError as exc:
+            print(f"[loader] ERROR: HTTP {exc.response.status_code} while downloading '{name}'")
+            return None
+        except requests.exceptions.RequestException as exc:
+            print(f"[loader] ERROR: unexpected error while downloading '{name}': {exc}")
+            return None
+
+        # ── 3. Validate the downloaded content ────────────────────────────────
+        try:
+            df = pd.read_csv(io.StringIO(response.text))
+            if df.empty:
+                raise ValueError("Downloaded CSV has no rows")
+        except (pd.errors.ParserError, ValueError) as exc:
+            print(f"[loader] ERROR: downloaded '{name}' is not a valid CSV: {exc}")
+            return None
+
+        # ── 4. Persist to cache ───────────────────────────────────────────────
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cached_path.write_bytes(response.content)
+            print(f"[loader] Dataset cache created successfully: {cached_path}")
+        except OSError as exc:
+            # Cache write failure is non-fatal – we already have the DataFrame
+            print(f"[loader] WARNING: could not write cache for '{name}': {exc}")
+
+        return df
 
     def is_ready(self) -> bool:
         """Core data CSVs are the source of truth for all API endpoints.
@@ -371,8 +454,8 @@ class ModelLoader:
 
 
 loader = ModelLoader(
-    Path(__file__).resolve().parent.parent.parent / "models",
-    Path(__file__).resolve().parent.parent.parent / "data",
+    models_dir=Path(__file__).resolve().parent.parent.parent / "models",
+    data_dir=DATA_DIR,
 )
 # Note: loader.load_all() is called by the FastAPI startup event in main.py.
 # Do NOT call it here — it would load all data twice at startup.
