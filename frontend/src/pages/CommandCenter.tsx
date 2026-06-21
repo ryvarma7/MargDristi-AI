@@ -34,18 +34,13 @@ const IconUsers = () => (
     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
   </svg>
 );
-const IconAlertCircle = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-  </svg>
-);
 
 export default function CommandCenter() {
   const { loading, error } = useClusters();
   const [activeTiers, setActiveTiers] = useState<Set<Tier>>(new Set(ALL_TIERS));
   const [xaiOpen, setXaiOpen] = useState(false);
   const [xaiCluster, setXaiCluster] = useState<Cluster | null>(null);
-  const [showOpsAlerts, setShowOpsAlerts] = useState(false); // collapsed by default
+  const [showOpsAlerts, setShowOpsAlerts] = useState(false);
 
   const toggleTier = (tier: Tier) =>
     setActiveTiers((prev) => {
@@ -59,12 +54,12 @@ export default function CommandCenter() {
       return next;
     });
 
-  const clusters        = useAppStore((s) => s.clusters);
-  const selectedCluster = useAppStore((s) => s.selectedCluster);
-  const selectCluster   = useAppStore((s) => s.selectCluster);
-  const deployments     = useAppStore((s) => s.deployments);
-  const schedules       = useAppStore((s) => s.schedules);
-  const showClusters    = useAppStore((s) => s.showClusters);
+  const clusters           = useAppStore((s) => s.clusters);
+  const selectedCluster    = useAppStore((s) => s.selectedCluster);
+  const selectCluster      = useAppStore((s) => s.selectCluster);
+  const deployments        = useAppStore((s) => s.deployments);
+  const schedules          = useAppStore((s) => s.schedules);
+  const showClusters       = useAppStore((s) => s.showClusters);
   const toggleShowClusters = useAppStore((s) => s.toggleShowClusters);
 
   const filteredClusters = clusters.filter((c) => activeTiers.has(c.tier));
