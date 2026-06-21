@@ -142,7 +142,7 @@ export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId
       <MapContainer
         center={BENGALURU_CENTER}
         zoom={BENGALURU_ZOOM}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', filter: 'brightness(1.15) contrast(1.05) saturate(1.2)' }}
         zoomControl={false}
       >
         <TileLayer

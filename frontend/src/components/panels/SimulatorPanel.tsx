@@ -175,7 +175,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: '100%', height: '100%', filter: 'brightness(1.15) contrast(1.05) saturate(1.2)' }}
                 zoomControl={false}
                 attributionControl={false}
                 dragging={false}
@@ -539,14 +539,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%' }}
-                zoomControl={false}
-                attributionControl={false}
-                dragging={false}
-                doubleClickZoom={false}
-                scrollWheelZoom={false}
-                touchZoom={false}
-              >
+                style={{ width: '100%', height: '100%', filter: 'brightness(1.15) contrast(1.05) saturate(1.2)' }}
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
                   url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

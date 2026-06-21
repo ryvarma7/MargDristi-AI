@@ -344,7 +344,7 @@ export default function TemporalAnalysis() {
           <MapContainer
             center={selectedCluster ? [selectedCluster.centroid_lat, selectedCluster.centroid_lng] : BENGALURU}
             zoom={selectedCluster ? 14 : 12}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '100%', height: '100%', filter: 'brightness(1.15) contrast(1.05) saturate(1.2)' }}
             zoomControl={true}
             key={selectedId ?? 'city'}
           >
