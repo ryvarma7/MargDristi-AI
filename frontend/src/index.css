@@ -292,7 +292,7 @@ input[type='range'].md-slider::-webkit-slider-runnable-track {
 
 /* ─── Leaflet Mid-Dark Tiles ─────────────────────────────────────────── */
 .mid-dark-tiles {
-  filter: invert(90%) hue-rotate(205deg) brightness(0.68) contrast(1.22) saturate(1.1) !important;
+  filter: invert(100%) hue-rotate(200deg) brightness(0.75) contrast(1.35) saturate(1.15) !important;
 }
 
 /* Style Leaflet controls to match dark theme */
