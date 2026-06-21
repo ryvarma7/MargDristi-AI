@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import NavBar from '../components/NavBar';
 import { useAppStore } from '../store/appStore';
 import useClusters from '../hooks/useClusters';
@@ -203,7 +203,7 @@ function HotspotCard({ cluster, rank, isDiscovered, isSelected, onSelect, onView
           onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(155,114,255,0.15)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(155,114,255,0.08)')}
         >
-          🧠 Why High Priority?
+          Why High Priority?
         </button>
       </div>
     </div>
@@ -235,6 +235,15 @@ export default function AIDiscoveries() {
     : activeTab === 'discovered'
       ? discovered
       : sorted;
+
+  // Auto-select the first hotspot in the new active list to ensure the details panel updates
+  useEffect(() => {
+    if (displayClusters.length > 0) {
+      setSelectedCluster(displayClusters[0]);
+    } else {
+      setSelectedCluster(null);
+    }
+  }, [activeTab, displayClusters]);
 
   return (
     <div style={{

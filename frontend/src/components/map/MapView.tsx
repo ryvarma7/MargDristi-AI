@@ -276,6 +276,25 @@ export default function MapView({
           const aiDiscovered = isAIDiscovered(cluster);
           const upcomingPeak = isUpcomingPeak(cluster);
 
+          const isDeployed  = !!deployment;
+          const isScheduled = !!schedule && !isDeployed;
+
+          let markerColor = color;
+          let markerFillColor = color;
+          let markerDashArray: string | undefined = undefined;
+
+          if (isDeployed) {
+            markerColor = '#00C8FF';
+            markerFillColor = '#00C8FF';
+          } else if (isScheduled) {
+            markerColor = '#FFC800';
+            markerDashArray = '5, 5';
+          }
+
+          if (isSelected) {
+            markerColor = '#ffffff';
+          }
+
           // Impact radius — proportional to CIS score (Impact layer)
           const impactRadius = activeLayers.has('impact')
             ? markerRadius + Math.round(cluster.avg_cis * 1.5)
@@ -395,10 +414,11 @@ export default function MapView({
                   center={[cluster.centroid_lat, cluster.centroid_lng]}
                   radius={markerRadius}
                   pathOptions={{
-                    color: isSelected ? '#ffffff' : color,
-                    fillColor: color,
+                    color: markerColor,
+                    fillColor: markerFillColor,
                     fillOpacity: cluster.tier === 'Tier 1' ? 0.55 : 0.38,
                     weight: isSelected ? 2.5 : 1.5,
+                    dashArray: markerDashArray,
                   }}
                   eventHandlers={{ click: () => onClusterClick(cluster) }}
                 >

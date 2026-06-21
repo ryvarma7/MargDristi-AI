@@ -114,26 +114,15 @@ export default function CommandCenter() {
         </div>
       ) : error && clusters.length === 0 ? (
         <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 12,
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'DM Sans',
+          fontSize: 13,
+          color: 'var(--text-dim)',
         }}>
-          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: 'var(--tier1)', letterSpacing: '0.1em' }}>
-            BACKEND UNAVAILABLE
-          </div>
-          <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-dim)' }}>
-            Backend service unavailable.
-          </div>
-          <div style={{
-            marginTop: 8,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            padding: '8px 16px',
-            fontFamily: 'IBM Plex Mono',
-            fontSize: 11,
-            color: 'var(--text-dim)',
-          }}>
-            cd backend &nbsp;&& uvicorn main:app --reload --port 8000
-          </div>
+          No data available
         </div>
       ) : (
         <div style={{

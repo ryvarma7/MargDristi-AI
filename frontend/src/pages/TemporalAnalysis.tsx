@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts';
-import { getClusters, getGeoHeatmapPoints, getHourlyPattern } from '../api/endpoints';
+
 import type { Cluster, HourlyPoint } from '../types';
 import NavBar from '../components/NavBar';
 
@@ -29,14 +29,14 @@ declare module 'leaflet' {
 const BENGALURU: [number, number] = [12.9716, 77.5946];
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-// Subtle gradient — keep map readable, colors only bloom at true hotspots
+// Vibrant gradient — clear transition from blue to red for hotspots visibility
 const GRADIENT = {
   0.0:  'rgba(0,0,0,0)',
-  0.15: 'rgba(0,180,80,0.15)',   // near-invisible green
-  0.35: 'rgba(0,180,80,0.45)',   // soft green
-  0.55: 'rgba(255,149,0,0.55)',  // amber
-  0.75: 'rgba(220,50,30,0.65)',  // muted red
-  1.0:  'rgba(255,30,30,0.82)',  // red only at true peaks
+  0.15: 'rgba(0, 120, 255, 0.5)',   // cyan/blue for cool/low density
+  0.35: 'rgba(0, 220, 100, 0.75)',  // bright green for moderate density
+  0.55: 'rgba(255, 200, 0, 0.85)',  // orange/yellow for high density
+  0.75: 'rgba(255, 100, 0, 0.95)',  // vibrant orange for critical density
+  1.0:  'rgba(255, 0, 0, 1.0)',     // pure intense red at hotspots
 };
 
 // ── HeatLayer inner component ─────────────────────────────────────────────────
@@ -49,11 +49,11 @@ function HeatLayer({ points }: { points: [number, number, number][] }) {
     if (points.length === 0) return;
 
     const layer = L.heatLayer(points, {
-      radius: 22,
-      blur: 28,
+      radius: 26,
+      blur: 16,
       maxZoom: 17,
-      max: 1.0,
-      minOpacity: 0.0,
+      max: 0.6,
+      minOpacity: 0.35,
       gradient: GRADIENT,
     });
     layer.addTo(map);
@@ -141,9 +141,7 @@ function BarTooltip({ active, payload, label }: { active?: boolean; payload?: { 
 export default function TemporalAnalysis() {
   const [clusters, setClusters]   = useState<Cluster[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [points, setPoints]       = useState<[number, number, number][]>([]);
   const [hourly, setHourly]       = useState<HourlyPoint[]>([]);
-  const [heatLoading, setHeatLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
@@ -152,30 +150,42 @@ export default function TemporalAnalysis() {
 
   const TIER_COLOR: Record<string, string> = { 'Tier 1': '#FF3B3B', 'Tier 2': '#FF9500', 'Tier 3': '#00C853' };
 
+  // Derive geo heatmap points inline from clusters array
+  const points = useMemo<[number, number, number][]>(() => {
+    if (clusters.length === 0) return [];
+    if (selectedId !== null) {
+      const c = clusters.find((x) => x.cluster_id === selectedId);
+      return c ? [[c.centroid_lat, c.centroid_lng, (c.risk_score / 100) * 1.5]] : [];
+    }
+    return clusters.map((c) => [c.centroid_lat, c.centroid_lng, (c.risk_score / 100) * 1.5]);
+  }, [clusters, selectedId]);
+
   // Cluster list
   useEffect(() => {
-    getClusters(undefined, 150)
-      .then((d) => setClusters([...d].sort((a, b) => b.risk_score - a.risk_score)))
+    fetch('/data/clusters.json')
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((d: Cluster[]) => setClusters([...d].sort((a, b) => b.risk_score - a.risk_score)))
       .catch(() => setClusters([]));
   }, []);
 
-  // Heatmap points
-  const loadPoints = useCallback(async (id: number | null) => {
-    setHeatLoading(true); setError(null);
-    try { setPoints(await getGeoHeatmapPoints(id ?? undefined, 3000)); }
-    catch { setError('Heatmap data unavailable'); setPoints([]); }
-    finally { setHeatLoading(false); }
-  }, []);
-
-  // Hourly pattern
-  const loadHourly = useCallback(async (id: number | null) => {
+  // Hourly pattern (loads city-wide data)
+  const loadHourly = useCallback(async () => {
     setChartLoading(true);
-    try { setHourly(await getHourlyPattern(id ?? undefined)); }
-    catch { setHourly([]); }
-    finally { setChartLoading(false); }
+    try {
+      const r = await fetch('/data/temporal_hourly_city.json');
+      if (!r.ok) throw new Error();
+      const data: HourlyPoint[] = await r.json();
+      setHourly(data);
+    } catch {
+      setHourly([]);
+    } finally {
+      setChartLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadPoints(selectedId); loadHourly(selectedId); }, [selectedId]);
+  useEffect(() => {
+    loadHourly();
+  }, [loadHourly]);
 
   const chartData = useMemo(() => {
     const map: Record<number, number> = {};
@@ -311,14 +321,14 @@ export default function TemporalAnalysis() {
               <span>{avgForecastConf}% conf</span>
             </div>
           )}
-          {(heatLoading || chartLoading) && (
+          {chartLoading && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cyan)', animation: 'tier1-pulse 1s ease-in-out infinite' }} />
               LOADING
             </div>
           )}
           {error && <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--tier1)' }}>{error}</div>}
-          {!heatLoading && points.length > 0 && (
+          {points.length > 0 && (
             <div style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', color: 'var(--text-faint)' }}>
               {points.length.toLocaleString()} pts
             </div>
@@ -349,7 +359,7 @@ export default function TemporalAnalysis() {
           <InfoOverlay cluster={selectedCluster} />
           <Legend count={points.length} />
 
-          {!heatLoading && points.length === 0 && !error && (
+          {points.length === 0 && !error && (
             <div style={{
               position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
               zIndex: 2000, pointerEvents: 'none', fontSize: 11,
@@ -472,6 +482,14 @@ export default function TemporalAnalysis() {
                       <Cell key={i} fill={d.hour >= 12 && d.hour <= 17 ? 'rgba(255,59,59,0.65)' : 'var(--blue)'} />
                     ))}
                   </Bar>
+                  {/* Predicted bars */}
+                  {forecastMode !== 'off' && (
+                    <Bar dataKey="predicted" radius={[2, 2, 0, 0]} maxBarSize={20} name="Predicted">
+                      {mergedChartData.map((d, i) => (
+                        <Cell key={i} fill="rgba(0, 200, 255, 0.75)" />
+                      ))}
+                    </Bar>
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             )}

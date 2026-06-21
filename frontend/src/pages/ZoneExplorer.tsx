@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
-import { getClusters, getViolationTypes, getVehicleTypes } from '../api/endpoints';
+import { getViolationsData } from '../data/staticData';
 import { Cluster, ViolationTypeBreakdown, VehicleTypeBreakdown } from '../types';
 import NavBar from '../components/NavBar';
 import MapView from '../components/map/MapView';
@@ -50,23 +50,34 @@ export default function ZoneExplorer() {
   const [xaiOpen, setXaiOpen] = useState(false);
 
   useEffect(() => {
-    getClusters(undefined, 150).then((data) => {
-      const sorted = [...data].sort((a, b) => b.risk_score - a.risk_score);
-      setClusters(sorted);
-      if (sorted.length > 0) setSelectedId(sorted[0].cluster_id);
-    }).catch(() => setClusters([]));
+    fetch('/data/clusters.json')
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data: Cluster[]) => {
+        const sorted = [...data].sort((a, b) => b.risk_score - a.risk_score);
+        setClusters(sorted);
+        if (sorted.length > 0) setSelectedId(sorted[0].cluster_id);
+      }).catch(() => setClusters([]));
   }, []);
 
   useEffect(() => {
     if (selectedId === null) return;
     setLoadingCharts(true);
-    Promise.all([
-      getViolationTypes(selectedId).catch(() => [] as ViolationTypeBreakdown[]),
-      getVehicleTypes(selectedId).catch(() => [] as VehicleTypeBreakdown[]),
-    ]).then(([vt, vet]) => {
-      setViolTypes(vt);
-      setVehTypes(vet);
-    }).finally(() => setLoadingCharts(false));
+    getViolationsData()
+      .then((data) => {
+        const entry = data.find((row) => Number(row.cluster_id) === selectedId);
+        if (entry) {
+          setViolTypes(entry.violation_types);
+          setVehTypes(entry.vehicle_types);
+        } else {
+          setViolTypes([]);
+          setVehTypes([]);
+        }
+      })
+      .catch(() => {
+        setViolTypes([]);
+        setVehTypes([]);
+      })
+      .finally(() => setLoadingCharts(false));
   }, [selectedId]);
 
   const selected = useMemo(

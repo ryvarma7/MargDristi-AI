@@ -200,7 +200,7 @@ export default function ActionRecommendationCard({ cluster, onViewReasoning }: P
           onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(155, 114, 255, 0.16)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(155, 114, 255, 0.08)')}
         >
-          🧠 View AI Reasoning
+          View AI Reasoning
         </button>
       )}
     </div>

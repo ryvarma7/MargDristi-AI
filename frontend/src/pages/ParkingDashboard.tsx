@@ -60,7 +60,7 @@ export default function ParkingDashboard() {
 
       {/* Parking KPI strip */}
       <div style={{
-        height: 72,
+        height: 76,
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
@@ -71,18 +71,19 @@ export default function ParkingDashboard() {
           <div key={k.label} style={{
             flex: 1,
             borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
-            padding: '10px 20px',
+            padding: '8px 16px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
+            overflow: 'hidden',
           }}>
-            <div style={{ fontSize: 10, fontFamily: 'DM Sans', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+            <div style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
               {k.label}
             </div>
-            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: k.small ? 14 : 20, fontWeight: 500, color: k.color, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'IBM Plex Mono', fontSize: k.small ? 13 : 20, fontWeight: 500, color: k.color, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {parkingHotspots.length === 0 ? '—' : k.value}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'DM Sans', marginTop: 2 }}>
+            <div style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'DM Sans', marginTop: 2 }}>
               {k.sub}
             </div>
           </div>

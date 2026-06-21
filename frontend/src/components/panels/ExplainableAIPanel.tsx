@@ -160,7 +160,7 @@ export default function ExplainableAIPanel({ cluster, isOpen, onClose }: Props) 
               fontWeight: 700,
               marginBottom: 3,
             }}>
-              🧠 Explainable AI
+              Explainable AI
             </div>
             <div style={{
               fontSize: 13,

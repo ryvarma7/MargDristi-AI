@@ -1,0 +1,206 @@
+[
+  {
+    "cluster_id": 87,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 4
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "CAR",
+        "count": 3,
+        "pct": 75
+      },
+      {
+        "vehicle_type": "JEEP",
+        "count": 1,
+        "pct": 25
+      }
+    ]
+  },
+  {
+    "cluster_id": 117,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 3
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "LGV",
+        "count": 3,
+        "pct": 100
+      }
+    ]
+  },
+  {
+    "cluster_id": 186,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 21
+      },
+      {
+        "violation_type": "NO PARKING",
+        "count": 12
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "PASSENGER AUTO",
+        "count": 17,
+        "pct": 51.5
+      },
+      {
+        "vehicle_type": "SCOOTER",
+        "count": 15,
+        "pct": 45.5
+      },
+      {
+        "vehicle_type": "MOTOR CYCLE",
+        "count": 1,
+        "pct": 3
+      }
+    ]
+  },
+  {
+    "cluster_id": 248,
+    "violation_types": [
+      {
+        "violation_type": "NO PARKING",
+        "count": 8
+      },
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 1
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "SCOOTER",
+        "count": 6,
+        "pct": 66.7
+      },
+      {
+        "vehicle_type": "MOTOR CYCLE",
+        "count": 3,
+        "pct": 33.3
+      }
+    ]
+  },
+  {
+    "cluster_id": 263,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 8
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "PASSENGER AUTO",
+        "count": 8,
+        "pct": 100
+      }
+    ]
+  },
+  {
+    "cluster_id": 410,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 7
+      },
+      {
+        "violation_type": "NO PARKING",
+        "count": 2
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "CAR",
+        "count": 6,
+        "pct": 66.7
+      },
+      {
+        "vehicle_type": "PASSENGER AUTO",
+        "count": 3,
+        "pct": 33.3
+      }
+    ]
+  },
+  {
+    "cluster_id": 436,
+    "violation_types": [
+      {
+        "violation_type": "NO PARKING",
+        "count": 7
+      },
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 2
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "MOTOR CYCLE",
+        "count": 4,
+        "pct": 44.4
+      },
+      {
+        "vehicle_type": "SCOOTER",
+        "count": 4,
+        "pct": 44.4
+      },
+      {
+        "vehicle_type": "PASSENGER AUTO",
+        "count": 1,
+        "pct": 11.1
+      }
+    ]
+  },
+  {
+    "cluster_id": 469,
+    "violation_types": [
+      {
+        "violation_type": "NO PARKING",
+        "count": 10
+      },
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 1
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "SCOOTER",
+        "count": 10,
+        "pct": 90.9
+      },
+      {
+        "vehicle_type": "MOTOR CYCLE",
+        "count": 1,
+        "pct": 9.1
+      }
+    ]
+  },
+  {
+    "cluster_id": 528,
+    "violation_types": [
+      {
+        "violation_type": "WRONG PARKING",
+        "count": 14
+      }
+    ],
+    "vehicle_types": [
+      {
+        "vehicle_type": "CAR",
+        "count": 14,
+        "pct": 100
+      }
+    ]
+  }
+]

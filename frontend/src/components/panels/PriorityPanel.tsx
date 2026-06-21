@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Badge from '../ui/Badge';
 import { deploy as deployApi } from '../../api/endpoints';
 import { Cluster } from '../../types';
 import { computeRecommendation } from './ActionRecommendationCard';
+import { useAppStore } from '../../store/appStore';
 
 const TIER_COLOR: Record<Cluster['tier'], string> = {
   'Tier 1': '#FF3B3B',
@@ -27,7 +28,28 @@ type Props = {
 export default function PriorityPanel({ clusters, selectedId, onSelect, onViewReasoning, onSchedule }: Props) {
   const [deployingId, setDeployingId] = useState<number | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
-  const sorted = [...clusters].sort((a, b) => b.risk_score - a.risk_score).slice(0, 20);
+
+  // Derive sorted list of top 20 hotspots by risk score.
+  // If a cluster is selected outside the top 20, append it to the list so it can be highlighted/focused.
+  const sorted = useMemo(() => {
+    const list = [...clusters].sort((a, b) => b.risk_score - a.risk_score).slice(0, 20);
+    if (selectedId !== null && !list.some((c) => c.cluster_id === selectedId)) {
+      const selectedCluster = clusters.find((c) => c.cluster_id === selectedId);
+      if (selectedCluster) {
+        list.push(selectedCluster);
+      }
+    }
+    return list;
+  }, [clusters, selectedId]);
+
+  // Smooth scroll selected row into view
+  useEffect(() => {
+    if (selectedId === null) return;
+    const el = document.getElementById(`cq-row-${selectedId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedId]);
 
   const handleQuickDeploy = async (cluster: Cluster) => {
     const rec = computeRecommendation(cluster);
@@ -35,6 +57,18 @@ export default function PriorityPanel({ clusters, selectedId, onSelect, onViewRe
     setNotification(null);
     try {
       await deployApi({ cluster_id: cluster.cluster_id, num_officers: rec.officers_required });
+      
+      // Update global Zustand store to immediately show deployment on the map
+      const addDeployment = useAppStore.getState().addDeployment;
+      addDeployment({
+        cluster_id: cluster.cluster_id,
+        zone_name: cluster.zone_name,
+        centroid_lat: cluster.centroid_lat,
+        centroid_lng: cluster.centroid_lng,
+        num_officers: rec.officers_required,
+        deployedAt: new Date().toISOString(),
+      });
+
       setNotification(`DEPLOYED — ${rec.officers_required} officers to ${cluster.zone_name}`);
     } catch {
       setNotification(`FAILED — ${cluster.zone_name}`);
@@ -42,6 +76,32 @@ export default function PriorityPanel({ clusters, selectedId, onSelect, onViewRe
       setDeployingId(null);
       window.setTimeout(() => setNotification(null), 3000);
     }
+  };
+
+  const handleQuickSchedule = (cluster: Cluster) => {
+    const rec = computeRecommendation(cluster);
+    
+    // Quick schedule for the peak hour of that hotspot (today or tomorrow)
+    const addSchedule = useAppStore.getState().addSchedule;
+    const scheduledTime = new Date();
+    scheduledTime.setHours(cluster.peak_hour, 0, 0, 0);
+    if (scheduledTime < new Date()) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
+    addSchedule({
+      cluster_id: cluster.cluster_id,
+      zone_name: cluster.zone_name,
+      centroid_lat: cluster.centroid_lat,
+      centroid_lng: cluster.centroid_lng,
+      num_officers: rec.officers_required,
+      scheduled_time: scheduledTime.toISOString(),
+    });
+
+    const period = cluster.peak_hour < 12 ? 'AM' : 'PM';
+    const displayHour = `${cluster.peak_hour % 12 === 0 ? 12 : cluster.peak_hour % 12}:00 ${period}`;
+    setNotification(`SCHEDULED — ${rec.officers_required} officers to ${cluster.zone_name} at ${displayHour}`);
+    window.setTimeout(() => setNotification(null), 3000);
   };
 
   return (
@@ -97,13 +157,13 @@ export default function PriorityPanel({ clusters, selectedId, onSelect, onViewRe
       {notification && (
         <div style={{
           padding: '8px 16px',
-          background: notification.startsWith('DEPLOYED')
+          background: (notification.startsWith('DEPLOYED') || notification.startsWith('SCHEDULED'))
             ? 'rgba(0,200,83,0.1)'
             : 'rgba(255,59,59,0.1)',
-          borderBottom: `1px solid ${notification.startsWith('DEPLOYED') ? 'rgba(0,200,83,0.2)' : 'rgba(255,59,59,0.2)'}`,
+          borderBottom: `1px solid ${(notification.startsWith('DEPLOYED') || notification.startsWith('SCHEDULED')) ? 'rgba(0,200,83,0.2)' : 'rgba(255,59,59,0.2)'}`,
           fontSize: 11,
           fontFamily: 'DM Sans',
-          color: notification.startsWith('DEPLOYED') ? '#00C853' : '#FF3B3B',
+          color: (notification.startsWith('DEPLOYED') || notification.startsWith('SCHEDULED')) ? '#00C853' : '#FF3B3B',
           flexShrink: 0,
         }}>
           {notification}
@@ -155,6 +215,7 @@ export default function PriorityPanel({ clusters, selectedId, onSelect, onViewRe
             return (
               <div
                 key={c.cluster_id}
+                id={`cq-row-${c.cluster_id}`}
                 className="cq-row"
                 style={{
                   display: 'grid',
@@ -259,7 +320,7 @@ export default function PriorityPanel({ clusters, selectedId, onSelect, onViewRe
                   </button>
                   <button
                     type="button"
-                    onClick={() => onSchedule?.(c)}
+                    onClick={() => handleQuickSchedule(c)}
                     title="Schedule Deployment"
                     style={{
                       background: 'rgba(255,200,0,0.08)',

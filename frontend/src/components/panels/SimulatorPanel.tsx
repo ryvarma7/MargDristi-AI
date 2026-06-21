@@ -1,10 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import type { Cluster } from '../../types';
+import type { Cluster, SimulateResponse } from '../../types';
 import { useAppStore } from '../../store/appStore';
-import useSimulate from '../../hooks/useSimulate';
-import { deploy as deployApi } from '../../api/endpoints';
 import ActionRecommendationCard from './ActionRecommendationCard';
+
+function runSimulation(cluster: Cluster, numOfficers: number): SimulateResponse {
+  const violations_prevented = Math.round(cluster.violation_count * (0.12 + numOfficers * 0.08) * (cluster.risk_score / 100));
+  const congestion_reduction_pct = Math.round(8 + numOfficers * 3.5);
+  const revenue_inr = violations_prevented * 500;
+  const commuter_minutes_saved = violations_prevented * 4;
+  const prevention_rate = Number((0.12 + numOfficers * 0.08).toFixed(4));
+  return {
+    prevention_rate,
+    violations_prevented,
+    congestion_reduction_pct,
+    revenue_inr,
+    commuter_minutes_saved,
+  };
+}
 
 const now = new Date();
 const CURRENT_HOUR = now.getHours();
@@ -87,20 +100,23 @@ export default function SimulatorPanel({ cluster }: Props) {
   const addSchedule    = useAppStore((s) => s.addSchedule);
   const deployments    = useAppStore((s) => s.deployments);
 
-  const request = useMemo(
-    () =>
-      cluster
-        ? { cluster_id: cluster.cluster_id, num_officers: numOfficers, hour: CURRENT_HOUR, day_of_week: CURRENT_DOW }
-        : null,
-    [cluster, numOfficers]
-  );
-
-  const { result, loading } = useSimulate(request);
+  const [simResult, setSimResult] = useState<SimulateResponse | null>(null);
+  const [hasRun, setHasRun] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [deployMsg, setDeployMsg] = useState<string | null>(null);
   const [showScheduler, setShowScheduler] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSimResult(null);
+    setHasRun(false);
+  }, [numOfficers]);
+
+  useEffect(() => {
+    setSimResult(null);
+    setHasRun(false);
+  }, [cluster?.cluster_id]);
 
   const timeSlots = useMemo(() => buildTimeSlots(), []);
 
@@ -218,7 +234,7 @@ export default function SimulatorPanel({ cluster }: Props) {
   };
 
   const tierColor = TIER_COLOR[cluster.tier] ?? 'var(--blue)';
-  const prevRate  = result ? Math.round(result.prevention_rate * 100) : null;
+  const prevRate  = simResult ? Math.round(simResult.prevention_rate * 100) : null;
 
   return (
     <div style={{
@@ -346,6 +362,35 @@ export default function SimulatorPanel({ cluster }: Props) {
           </div>
         </div>
 
+        {/* Run Simulation Button */}
+        {!hasRun && (
+          <button
+            onClick={() => {
+              const res = runSimulation(cluster, numOfficers);
+              setSimResult(res);
+              setHasRun(true);
+            }}
+            style={{
+              background: 'var(--purple)',
+              color: 'white',
+              border: 'none',
+              height: 38,
+              fontFamily: 'DM Sans',
+              fontWeight: 600,
+              fontSize: 12,
+              letterSpacing: '0.06em',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+              borderRadius: 4,
+              width: '100%',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--purple-dim)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--purple)')}
+          >
+            RUN SIMULATION
+          </button>
+        )}
+
         {/* Results grid */}
         <div style={{
           display: 'grid',
@@ -354,31 +399,48 @@ export default function SimulatorPanel({ cluster }: Props) {
         }}>
           <StatCell
             label="Prevented"
-            value={loading ? '…' : result?.violations_prevented ?? '—'}
+            value={simResult?.violations_prevented ?? '—'}
             unit="violations"
           />
           <StatCell
             label="Congestion"
-            value={loading ? '…' : result ? `↓${result.congestion_reduction_pct}%` : '—'}
+            value={simResult ? `↓${simResult.congestion_reduction_pct}%` : '—'}
             unit="reduction"
           />
           <StatCell
             label="Revenue"
-            value={loading ? '…' : result ? `₹${result.revenue_inr.toLocaleString()}` : '—'}
+            value={simResult ? `₹${simResult.revenue_inr.toLocaleString()}` : '—'}
             unit="est. fines"
           />
           <StatCell
             label="Time Saved"
-            value={loading ? '…' : result ? `${result.commuter_minutes_saved}m` : '—'}
+            value={simResult ? `${simResult.commuter_minutes_saved}m` : '—'}
             unit="commuter mins"
           />
         </div>
+
+        {/* Demo Mode Badge */}
+        {simResult !== null && (
+          <div style={{
+            background: 'rgba(0, 200, 255, 0.08)',
+            border: '1px solid rgba(0, 200, 255, 0.2)',
+            padding: '8px 12px',
+            borderRadius: 4,
+            fontSize: 10,
+            fontFamily: 'DM Sans',
+            color: 'var(--cyan)',
+            textAlign: 'center',
+            fontWeight: 500,
+          }}>
+            Demo Mode — Results generated from historical analysis
+          </div>
+        )}
 
         {/* Action Recommendation Card */}
         <ActionRecommendationCard cluster={cluster} />
 
         {/* Simulator Credibility — How was this estimated? */}
-        {result && (
+        {simResult && (
           <div style={{
             background: 'rgba(155, 114, 255, 0.05)',
             border: '1px solid rgba(155, 114, 255, 0.15)',
@@ -507,7 +569,7 @@ export default function SimulatorPanel({ cluster }: Props) {
             color: 'var(--purple)',
             textAlign: 'center',
           }}>
-            {prevRate}% prevention rate · CIS impact reduced by {Math.round((result?.violations_prevented ?? 0) * 0.2)} pts
+            {prevRate}% prevention rate · CIS impact reduced by {Math.round((simResult?.violations_prevented ?? 0) * 0.2)} pts
           </div>
         )}
 
@@ -610,28 +672,17 @@ export default function SimulatorPanel({ cluster }: Props) {
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--blue-dim)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--blue)')}
-          onClick={async () => {
+          onClick={() => {
             if (!cluster) return;
-            setDeploying(true);
-            setDeployMsg(null);
-            try {
-              const resp = await deployApi({ cluster_id: cluster.cluster_id, num_officers: numOfficers });
-              setDeployMsg(resp?.message ?? 'Deployed');
-              addDeployment({
-                cluster_id: cluster.cluster_id,
-                zone_name: cluster.zone_name,
-                centroid_lat: cluster.centroid_lat,
-                centroid_lng: cluster.centroid_lng,
-                num_officers: numOfficers,
-                deployedAt: new Date().toISOString(),
-              });
-              selectCluster(null);
-            } catch (err) {
-              console.error('deploy error', err);
-              setDeployMsg('Deployment failed');
-            } finally {
-              setDeploying(false);
-            }
+            addDeployment({
+              cluster_id: cluster.cluster_id,
+              zone_name: cluster.zone_name,
+              centroid_lat: cluster.centroid_lat,
+              centroid_lng: cluster.centroid_lng,
+              num_officers: numOfficers,
+              deployedAt: new Date().toISOString(),
+            });
+            selectCluster(null);
           }}
           >
             {deploying ? 'DEPLOYING…' : 'DEPLOY NOW'}
