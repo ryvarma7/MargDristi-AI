@@ -34,10 +34,12 @@ type ScheduleSummary = {
 };
 
 // Map layer definitions
-type LayerId = 'risk' | 'impact';
+type LayerId = 'risk' | 'impact' | 'deployed' | 'scheduled';
 const LAYERS: { id: LayerId; label: string; color: string }[] = [
-  { id: 'risk',     label: 'Risk',             color: '#FF3B3B' },
-  { id: 'impact',   label: 'Impact',           color: '#9B72FF' },
+  { id: 'risk',      label: 'Risk',             color: '#FF3B3B' },
+  { id: 'impact',    label: 'Impact',           color: '#9B72FF' },
+  { id: 'deployed',  label: 'Deployed',         color: '#00C8FF' },
+  { id: 'scheduled', label: 'Scheduled',        color: '#FFC800' },
 ];
 
 function ResetToBengaluruControl() {
@@ -121,7 +123,7 @@ export default function MapView({
   zoom = 11,
   activeLayers: externalLayers,
 }: Props) {
-  const [internalLayers, setInternalLayers] = useState<Set<LayerId>>(new Set(['risk']));
+  const [internalLayers, setInternalLayers] = useState<Set<LayerId>>(new Set(['risk', 'deployed', 'scheduled']));
   const activeLayers = externalLayers ?? internalLayers;
 
   const toggleLayer = (id: LayerId) => {
@@ -259,8 +261,8 @@ export default function MapView({
           const aiDiscovered = isAIDiscovered(cluster);
 
 
-          const isDeployed  = !!deployment;
-          const isScheduled = !!schedule && !isDeployed;
+          const isDeployed  = !!deployment && activeLayers.has('deployed');
+          const isScheduled = !!schedule && !isDeployed && activeLayers.has('scheduled');
 
           let markerColor = color;
           let markerFillColor = color;
@@ -283,14 +285,14 @@ export default function MapView({
             ? markerRadius + Math.round(cluster.avg_cis * 1.5)
             : 0;
 
-          const deployBadgeIcon = deployment ? L.divIcon({
+          const deployBadgeIcon = deployment && activeLayers.has('deployed') ? L.divIcon({
             className: 'deployed-cluster-badge',
             html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:20px;border-radius:999px;background:rgba(0,200,255,0.96);color:#06080F;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;box-shadow:0 4px 10px rgba(0,200,255,0.18);">${deployment.num_officers}</div>`,
             iconSize: [28, 20],
             iconAnchor: [14, -markerRadius - 14],
           }) : null;
 
-          const scheduleBadgeIcon = schedule && !deployment ? L.divIcon({
+          const scheduleBadgeIcon = schedule && !deployment && activeLayers.has('scheduled') ? L.divIcon({
             className: 'scheduled-cluster-badge',
             html: `<div style="display:flex;align-items:center;justify-content:center;width:28px;height:20px;border-radius:999px;background:rgba(255,200,0,0.92);color:#06080F;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;box-shadow:0 4px 10px rgba(255,200,0,0.18);">+${schedule.num_officers}</div>`,
             iconSize: [36, 20],
@@ -322,7 +324,7 @@ export default function MapView({
 
 
               {/* Deployment ring */}
-              {deployment && (
+              {isDeployed && (
                 <CircleMarker
                   center={[cluster.centroid_lat, cluster.centroid_lng]}
                   radius={markerRadius + 9}
@@ -333,7 +335,7 @@ export default function MapView({
               )}
 
               {/* Schedule ring */}
-              {schedule && !deployment && (
+              {isScheduled && (
                 <CircleMarker
                   center={[cluster.centroid_lat, cluster.centroid_lng]}
                   radius={markerRadius + 9}
