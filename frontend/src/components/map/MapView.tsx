@@ -257,7 +257,7 @@ export default function MapView({
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ height: '100%', width: '100%', background: '#06080F', filter: 'brightness(0.92) contrast(1.3) saturate(1.2)' }}
+        style={{ height: '100%', width: '100%', background: '#0d1520', filter: 'brightness(1.15) contrast(1.1) saturate(1.3)' }}
         zoomControl={true}
       >
         <TileLayer
