@@ -3,3 +3,5 @@ dataset/
 venv/
 __pycache__/
 dataset/jan to may police violation_anonymized.csv
+data/violations_clean.csv
+data/violations_clustered.csv
