@@ -186,7 +186,7 @@ export default function SimulatorPanel({ cluster }: Props) {
                 <TileLayer
                   className="mid-dark-tiles"
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
                 {deployments.map((deployment) => (
                   <Marker key={deployment.cluster_id} position={[deployment.centroid_lat, deployment.centroid_lng]} />
@@ -551,7 +551,7 @@ export default function SimulatorPanel({ cluster }: Props) {
                 <TileLayer
                   className="mid-dark-tiles"
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                 />
                 {deployments.map((deployment) => (
                   <Marker
