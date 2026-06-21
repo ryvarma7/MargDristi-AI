@@ -1,15 +1,10 @@
 {
-    "experimentalServices": {
-        "frontend": {
-            "root": "frontend",
-            "routePrefix": "/",
-            "framework": "vite"
-        },
-        "backend": {
-            "root": "backend",
-            "routePrefix": "/_/backend",
-            "entrypoint": "main.py",
-            "runtime": "@vercel/python"
+    "buildCommand": "cd frontend && npm install && npm run build",
+    "outputDirectory": "frontend/dist",
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "https://margdristi-api.onrender.com/api/$1"
         }
-    }
+    ]
 }

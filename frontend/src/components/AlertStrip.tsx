@@ -29,7 +29,7 @@ function buildAlerts(clusters: Cluster[]): { dot: string; text: string }[] {
   ];
 
   return alerts.length ? alerts : [
-    { dot: 'var(--tier2)', text: 'Connecting to MargDristi backend… Start uvicorn at localhost:8000' },
+    { dot: 'var(--tier2)', text: 'Connecting to MargDristi backend… Backend service unavailable.' },
   ];
 }
 

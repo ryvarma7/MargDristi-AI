@@ -121,8 +121,7 @@ export default function CommandCenter() {
             BACKEND UNAVAILABLE
           </div>
           <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--text-dim)' }}>
-            Start the backend server at{' '}
-            <span style={{ color: 'var(--cyan)', fontFamily: 'IBM Plex Mono' }}>localhost:8000</span>
+            Backend service unavailable.
           </div>
           <div style={{
             marginTop: 8,
