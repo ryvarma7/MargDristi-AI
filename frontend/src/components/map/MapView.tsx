@@ -160,11 +160,11 @@ export default function MapView({
   return (
     <div style={{ position: 'relative', height: '100%' }}>
 
-      {/* Layer toggles — top left */}
+      {/* Layer toggles — bottom left */}
       {externalLayers === undefined && (
         <div style={{
           position: 'absolute',
-          top: 12,
+          bottom: 12,
           left: 12,
           zIndex: 2000,
           display: 'flex',
@@ -174,13 +174,14 @@ export default function MapView({
           <div style={{
             fontSize: 8,
             fontFamily: 'DM Sans',
-            color: 'rgba(255,255,255,0.4)',
+            color: 'var(--text-dim)',
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
             marginBottom: 2,
-            background: 'rgba(12,18,33,0.88)',
+            background: 'var(--bg-surface)',
             padding: '3px 8px',
             borderRadius: 4,
+            border: '1px solid var(--border)',
           }}>
             Map Layers
           </div>
@@ -192,16 +193,16 @@ export default function MapView({
                 className="map-layer-btn"
                 onClick={() => toggleLayer(layer.id)}
                 style={{
-                  border: `1px solid ${active ? layer.color : 'rgba(255,255,255,0.12)'}`,
-                  background: active ? `${layer.color}22` : 'rgba(12,18,33,0.88)',
-                  color: active ? layer.color : 'var(--text-faint)',
+                  border: `1px solid ${active ? layer.color : 'var(--border)'}`,
+                  background: active ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+                  color: active ? layer.color : 'var(--text-dim)',
                 }}
               >
                 <span style={{
                   width: 7,
                   height: 7,
                   borderRadius: '50%',
-                  background: active ? layer.color : 'rgba(255,255,255,0.2)',
+                  background: active ? layer.color : 'var(--text-faint)',
                 }} />
                 {layer.label}
               </button>
