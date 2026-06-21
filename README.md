@@ -5,14 +5,14 @@ MargDristi is an AI-powered spatial-temporal command center platform built for t
 
 ---
 
-## 🚦 The Core Problem: The Enforcement Blindspot
+##  The Core Problem: The Enforcement Blindspot
 During peak traffic hours (12:00 PM – 6:00 PM), on-duty traffic police officers are occupied directing vehicles at major junctions. Because they cannot leave their posts to ticket illegally parked vehicles, **over 99% of historical parking violation logs occur off-peak** (e.g., early mornings or late nights). 
 
 This creates a massive data **blindspot**: the areas with the highest congestion and peak illegal parking are rarely logged. MargDristi resolves this by predicting peak violation zones and directing targeted patrols preemptively.
 
 ---
 
-## 🔮 Core Architecture & Innovations
+##  Core Architecture & Innovations
 1. **HDBSCAN Spatial Hotspot Detection**: Clusters **298,450 raw parking violation GPS records** into spatial hotspot zones. HDBSCAN (Hierarchical Density-Based Spatial Clustering of Applications with Noise) extracts dense violation hotspots and filters out GPS noise without requiring a rigid global distance threshold.
 2. **Congestion Impact Score (CIS)**: A custom multi-factor scoring algorithm that calculates traffic disruption per hotspot:
    $$\text{CIS} = \text{Violation Severity} \times \text{Vehicle Size Weight} \times \text{Junction Proximity} \times \text{Violation Density}$$
@@ -29,7 +29,7 @@ This creates a massive data **blindspot**: the areas with the highest congestion
 
 ---
 
-## 🛠️ Technology Stack
+##  Technology Stack
 *   **Data Science & Machine Learning (Python)**:
     *   `pandas`, `numpy` for data manipulation.
     *   `hdbscan` for spatial clustering.
@@ -51,7 +51,7 @@ This creates a massive data **blindspot**: the areas with the highest congestion
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 ```
 margdristi/
 ├── data/                         # Small metadata & parking CSV files
@@ -77,7 +77,7 @@ margdristi/
 
 ---
 
-## 🚀 Running the Project Locally
+##  Running the Project Locally
 
 ### Prerequisites
 *   **Python 3.10+** (with pip)
