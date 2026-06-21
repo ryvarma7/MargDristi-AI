@@ -142,11 +142,11 @@ export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId
       <MapContainer
         center={BENGALURU_CENTER}
         zoom={BENGALURU_ZOOM}
-        style={{ width: '100%', height: '100%', filter: 'brightness(1.3) contrast(1.6) saturate(1.1)' }}
+        style={{ width: '100%', height: '100%', background: '#f5f5f5' }}
         zoomControl={false}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://carto.com">CartoDB</a>'
           maxZoom={19}
         />

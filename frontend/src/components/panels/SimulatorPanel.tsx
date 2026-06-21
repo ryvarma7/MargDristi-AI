@@ -175,7 +175,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%', filter: 'brightness(1.3) contrast(1.6) saturate(1.1)' }}
+                style={{ width: '100%', height: '100%', background: '#f5f5f5' }}
                 zoomControl={false}
                 attributionControl={false}
                 dragging={false}
@@ -185,7 +185,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               >
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
                 {deployments.map((deployment) => (
                   <Marker key={deployment.cluster_id} position={[deployment.centroid_lat, deployment.centroid_lng]} />
@@ -539,7 +539,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%', filter: 'brightness(1.3) contrast(1.6) saturate(1.1)' }}
+                style={{ width: '100%', height: '100%', background: '#f5f5f5' }}
                 zoomControl={false}
                 attributionControl={false}
                 dragging={false}
@@ -549,7 +549,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               >
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
                 {deployments.map((deployment) => (
                   <Marker
