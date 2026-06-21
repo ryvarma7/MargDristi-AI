@@ -257,10 +257,11 @@ export default function MapView({
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ height: '100%', width: '100%', background: '#f5f5f5' }}
+        style={{ height: '100%', width: '100%', background: 'var(--bg-surface)' }}
         zoomControl={true}
       >
         <TileLayer
+          className="mid-dark-tiles"
           attribution='&copy; <a href="https://carto.com">CartoDB</a>'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           maxZoom={19}

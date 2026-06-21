@@ -175,7 +175,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%', background: '#f5f5f5' }}
+                style={{ width: '100%', height: '100%', background: 'var(--bg-surface)' }}
                 zoomControl={false}
                 attributionControl={false}
                 dragging={false}
@@ -184,6 +184,7 @@ export default function SimulatorPanel({ cluster }: Props) {
                 touchZoom={false}
               >
                 <TileLayer
+                  className="mid-dark-tiles"
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
@@ -539,7 +540,7 @@ export default function SimulatorPanel({ cluster }: Props) {
               <MapContainer
                 center={[deployments[0].centroid_lat, deployments[0].centroid_lng]}
                 zoom={12}
-                style={{ width: '100%', height: '100%', background: '#f5f5f5' }}
+                style={{ width: '100%', height: '100%', background: 'var(--bg-surface)' }}
                 zoomControl={false}
                 attributionControl={false}
                 dragging={false}
@@ -548,6 +549,7 @@ export default function SimulatorPanel({ cluster }: Props) {
                 touchZoom={false}
               >
                 <TileLayer
+                  className="mid-dark-tiles"
                   attribution='&copy; <a href="https://carto.com">CartoDB</a>'
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />

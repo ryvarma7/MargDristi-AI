@@ -290,3 +290,37 @@ input[type='range'].md-slider::-webkit-slider-runnable-track {
   animation: card-slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* ─── Leaflet Mid-Dark Tiles ─────────────────────────────────────────── */
+.mid-dark-tiles {
+  filter: invert(90%) hue-rotate(205deg) brightness(0.68) contrast(1.22) saturate(1.1) !important;
+}
+
+/* Style Leaflet controls to match dark theme */
+.leaflet-bar {
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+.leaflet-bar a {
+  background-color: var(--bg-surface) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.leaflet-bar a:hover {
+  background-color: var(--bg-elevated) !important;
+  color: var(--cyan) !important;
+}
+.leaflet-control-attribution {
+  background: rgba(12, 18, 33, 0.85) !important;
+  color: var(--text-dim) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  border-top-left-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.leaflet-control-attribution a {
+  color: var(--cyan) !important;
+}
+.leaflet-container {
+  background: var(--bg-base) !important;
+}
+
+
