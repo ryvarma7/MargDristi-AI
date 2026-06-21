@@ -146,8 +146,9 @@ export default function ParkingHotspotMap({ hotspots, onHotspotClick, selectedId
         zoomControl={false}
       >
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png"
-          attribution='&copy; Stadia Maps, &copy; OpenMapTiles &copy; OpenStreetMap'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com">CartoDB</a>'
+          maxZoom={19}
         />
 
         {hotspots.map((hotspot) => {
