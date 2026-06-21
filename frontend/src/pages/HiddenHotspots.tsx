@@ -236,8 +236,6 @@ export default function HiddenHotspots() {
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null);
   const [xaiOpen, setXaiOpen] = useState(false);
   const [xaiCluster, setXaiCluster] = useState<Cluster | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'known' | 'unmapped'>('all');
-
   const sorted = useMemo(
     () => [...clusters].sort((a, b) => b.risk_score - a.risk_score),
     [clusters]
@@ -250,20 +248,16 @@ export default function HiddenHotspots() {
     setXaiOpen(true);
   };
 
-  const displayClusters = activeTab === 'known'
-    ? known
-    : activeTab === 'unmapped'
-      ? unmapped
-      : sorted;
+  const displayClusters = sorted;
 
-  // Auto-select the first hotspot in the new active list to ensure the details panel updates
+  // Auto-select the first hotspot to ensure the details panel updates
   useEffect(() => {
     if (displayClusters.length > 0) {
       setSelectedCluster(displayClusters[0]);
     } else {
       setSelectedCluster(null);
     }
-  }, [activeTab, displayClusters]);
+  }, [displayClusters]);
 
   return (
     <div style={{
@@ -321,61 +315,28 @@ export default function HiddenHotspots() {
 
           {/* Summary stats */}
           <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-            {[
-              { label: 'Known Junctions', value: known.length, color: 'var(--cyan)' },
-              { label: 'Unmapped Hotspots', value: unmapped.length, color: 'var(--purple)' },
-              { label: 'Total Zones', value: sorted.length, color: 'var(--text-dim)' },
-            ].map((s) => (
-              <div key={s.label} style={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                padding: '10px 14px',
-                textAlign: 'center',
-                minWidth: 90,
+            <div style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              padding: '10px 14px',
+              textAlign: 'center',
+              minWidth: 100,
+            }}>
+              <div style={{
+                fontFamily: 'IBM Plex Mono',
+                fontSize: 22,
+                fontWeight: 500,
+                color: 'var(--text-dim)',
+                lineHeight: 1,
+                marginBottom: 4,
               }}>
-                <div style={{
-                  fontFamily: 'IBM Plex Mono',
-                  fontSize: 22,
-                  fontWeight: 500,
-                  color: s.color,
-                  lineHeight: 1,
-                  marginBottom: 4,
-                }}>
-                  {clusters.length === 0 ? '—' : s.value}
-                </div>
-                <div style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {s.label}
-                </div>
+                {clusters.length === 0 ? '—' : sorted.length}
               </div>
-            ))}
+              <div style={{ fontSize: 9, fontFamily: 'DM Sans', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Total Zones
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-          {([
-            { id: 'all', label: `All Hotspots (${sorted.length})` },
-            { id: 'known', label: `Known Junctions (${known.length})` },
-            { id: 'unmapped', label: `Unmapped Hotspots (${unmapped.length})` },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '6px 14px',
-                border: `1px solid ${activeTab === tab.id ? 'var(--border-active)' : 'var(--border)'}`,
-                background: activeTab === tab.id ? 'var(--bg-elevated)' : 'transparent',
-                color: activeTab === tab.id ? 'var(--text)' : 'var(--text-dim)',
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                fontWeight: activeTab === tab.id ? 600 : 400,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -399,22 +360,7 @@ export default function HiddenHotspots() {
           <div style={{ display: 'flex', gap: 20 }}>
             {/* Hotspot list */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-              {activeTab === 'unmapped' && (
-                <div style={{
-                  background: 'rgba(0, 200, 255, 0.04)',
-                  border: '1px solid rgba(0, 200, 255, 0.14)',
-                  borderLeft: '3px solid var(--cyan)',
-                  padding: '10px 14px',
-                  fontSize: 11,
-                  fontFamily: 'DM Sans',
-                  color: 'var(--text-dim)',
-                  lineHeight: 1.5,
-                }}>
-                  These zones were not present in the original BTP enforcement database but were identified through
-                  spatial clustering of GPS violation records. They represent{' '}
-                  <strong style={{ color: 'var(--cyan)' }}>emerging or overlooked</strong> enforcement gaps.
-                </div>
-              )}
+
 
               {displayClusters.map((cluster, i) => (
                 <HotspotCard

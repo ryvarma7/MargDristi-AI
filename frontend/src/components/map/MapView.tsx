@@ -34,13 +34,10 @@ type ScheduleSummary = {
 };
 
 // Map layer definitions
-type LayerId = 'risk' | 'impact' | 'forecast' | 'hidden' | 'junction';
+type LayerId = 'risk' | 'impact';
 const LAYERS: { id: LayerId; label: string; color: string }[] = [
   { id: 'risk',     label: 'Risk',             color: '#FF3B3B' },
   { id: 'impact',   label: 'Impact',           color: '#9B72FF' },
-  { id: 'forecast', label: 'Forecast',         color: '#FF9500' },
-  { id: 'hidden',   label: 'Unmapped Hotspots',color: '#00C8FF' },
-  { id: 'junction', label: 'Junctions',        color: '#1E6FFF' },
 ];
 
 function ResetToBengaluruControl() {
@@ -99,13 +96,7 @@ function isAIDiscovered(cluster: Cluster): boolean {
   return cluster.avg_cis > 4.5 && cluster.tier === 'Tier 1' && cluster.violation_count > 800;
 }
 
-// Upcoming peak within next 3 hours
-function isUpcomingPeak(cluster: Cluster): boolean {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const hours = (cluster.peak_hour - currentHour + 24) % 24;
-  return hours >= 0 && hours <= 3;
-}
+
 
 type Props = {
   clusters: Cluster[];
@@ -130,7 +121,7 @@ export default function MapView({
   zoom = 11,
   activeLayers: externalLayers,
 }: Props) {
-  const [internalLayers, setInternalLayers] = useState<Set<LayerId>>(new Set(['risk', 'impact']));
+  const [internalLayers, setInternalLayers] = useState<Set<LayerId>>(new Set(['risk']));
   const activeLayers = externalLayers ?? internalLayers;
 
   const toggleLayer = (id: LayerId) => {
@@ -240,18 +231,8 @@ export default function MapView({
             <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px dashed #FFC800', boxSizing: 'border-box' }} />
             Scheduled
           </div>
-          {activeLayers.has('hidden') && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 10, height: 10, background: 'linear-gradient(135deg, #9B72FF, #00C8FF)', borderRadius: 2 }} />
-              Unmapped Hotspot
-            </div>
-          )}
-          {activeLayers.has('forecast') && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid #FF9500', boxSizing: 'border-box' }} />
-              Peak Soon
-            </div>
-          )}
+
+
         </div>
       </div>
 
@@ -276,7 +257,7 @@ export default function MapView({
           const deployment  = deployments.find((d) => d.cluster_id === cluster.cluster_id);
           const schedule    = schedules.find((s) => s.cluster_id === cluster.cluster_id);
           const aiDiscovered = isAIDiscovered(cluster);
-          const upcomingPeak = isUpcomingPeak(cluster);
+
 
           const isDeployed  = !!deployment;
           const isScheduled = !!schedule && !isDeployed;
@@ -316,12 +297,7 @@ export default function MapView({
             iconAnchor: [18, -markerRadius - 14],
           }) : null;
 
-          const aiDiscoveredBadge = aiDiscovered && activeLayers.has('hidden') ? L.divIcon({
-            className: '',
-            html: `<div class="ai-badge-glow" style="display:flex;align-items:center;justify-content:center;padding:2px 6px;border-radius:999px;background:linear-gradient(135deg,rgba(155,114,255,0.9),rgba(0,200,255,0.9));color:#06080F;font-family:'DM Sans',sans-serif;font-size:8px;font-weight:700;white-space:nowrap;letter-spacing:0.04em;">AI</div>`,
-            iconSize: [26, 14],
-            iconAnchor: [13, -markerRadius - 22],
-          }) : null;
+          const aiDiscoveredBadge = null;
 
           return (
             <Fragment key={cluster.cluster_id}>
@@ -341,52 +317,9 @@ export default function MapView({
                 />
               )}
 
-              {/* Forecast Layer — amber ring for upcoming peak */}
-              {activeLayers.has('forecast') && upcomingPeak && (
-                <CircleMarker
-                  center={[cluster.centroid_lat, cluster.centroid_lng]}
-                  radius={markerRadius + 14}
-                  pathOptions={{
-                    color: '#FF9500',
-                    weight: 1.5,
-                    opacity: 0.6,
-                    fillOpacity: 0,
-                    dashArray: '4 3',
-                  }}
-                  interactive={false}
-                />
-              )}
 
-              {/* Junction Layer — official junction outline ring */}
-              {activeLayers.has('junction') && !aiDiscovered && (
-                <CircleMarker
-                  center={[cluster.centroid_lat, cluster.centroid_lng]}
-                  radius={markerRadius + 6}
-                  pathOptions={{
-                    color: '#1E6FFF',
-                    weight: 1,
-                    opacity: 0.3,
-                    fillOpacity: 0,
-                  }}
-                  interactive={false}
-                />
-              )}
 
-              {/* AI Discovered Layer — purple ring */}
-              {activeLayers.has('hidden') && aiDiscovered && (
-                <CircleMarker
-                  center={[cluster.centroid_lat, cluster.centroid_lng]}
-                  radius={markerRadius + 10}
-                  pathOptions={{
-                    color: '#9B72FF',
-                    weight: 2,
-                    opacity: 0.7,
-                    fillOpacity: 0.05,
-                    fillColor: '#9B72FF',
-                  }}
-                  interactive={false}
-                />
-              )}
+
 
               {/* Deployment ring */}
               {deployment && (
@@ -444,16 +377,8 @@ export default function MapView({
                         <div><span style={{ color: 'var(--cyan)', fontWeight: 600 }}>Peak</span>: {fmtHour(cluster.peak_hour)}</div>
                         <div><span style={{ color: 'var(--cyan)', fontWeight: 600 }}>CIS</span>: {cluster.avg_cis.toFixed(2)}</div>
                         <div><span style={{ color }}>●</span> {cluster.tier}</div>
-                        {aiDiscovered && (
-                          <div style={{ marginTop: 4, color: '#9B72FF', fontWeight: 600, fontSize: 10 }}>
-                            Unmapped Hotspot
-                          </div>
-                        )}
-                        {upcomingPeak && (
-                          <div style={{ color: '#FF9500', fontWeight: 600, fontSize: 10 }}>
-                            Peak in &lt;3h
-                          </div>
-                        )}
+
+
                       </div>
                     </div>
                   </Tooltip>
