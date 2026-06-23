@@ -2,7 +2,6 @@
 ## Bengaluru Traffic Intelligence & Enforcement Command Center
 
 MargDristi is an AI-powered spatial-temporal command center platform built for the **Bengaluru Traffic Police**. The platform ingests parking violation data, clusters spatial points, forecasts violation frequencies, and simulates police officer deployments to optimize enforcement and reduce traffic congestion.
-
 ---
 
 ##  The Core Problem: The Enforcement Blindspot
